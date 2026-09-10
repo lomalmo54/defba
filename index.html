@@ -1,0 +1,3128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>DEFBA</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            width: 100%; height: 100%;
+            background: #0a0a0f;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
+        }
+        canvas { display: block; }
+
+        .screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #14142a 0%, #0a0a0f 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .screen.hidden { display: none; }
+
+        #mainMenu h1 {
+            font-size: clamp(60px, 15vw, 140px);
+            font-weight: 900;
+            letter-spacing: 8px;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 1), 0 0 40px rgba(0, 255, 136, 0.7), 0 0 80px rgba(0, 255, 136, 0.5);
+            margin-bottom: 10px;
+            animation: titlePulse 2s ease-in-out infinite;
+        }
+        @keyframes titlePulse {
+            0%, 100% { text-shadow: 0 0 20px rgba(0, 255, 136, 1), 0 0 40px rgba(0, 255, 136, 0.7), 0 0 80px rgba(0, 255, 136, 0.5); }
+            50% { text-shadow: 0 0 30px rgba(0, 255, 136, 1), 0 0 60px rgba(0, 255, 136, 0.9), 0 0 120px rgba(0, 255, 136, 0.7); }
+        }
+        #mainMenu .subtitle {
+            color: #888;
+            font-size: clamp(14px, 2vw, 18px);
+            letter-spacing: 4px;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+        .menu-btn {
+            padding: clamp(14px, 2vw, 20px) clamp(35px, 6vw, 70px);
+            font-size: clamp(16px, 2.5vw, 22px);
+            font-weight: bold;
+            background: transparent;
+            color: #00ff88;
+            border: 3px solid #00ff88;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1);
+            font-family: inherit;
+            margin-top: 12px;
+        }
+        .menu-btn:hover, .menu-btn:active {
+            background: #00ff88;
+            color: #0a0a0f;
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.9);
+            transform: scale(1.05);
+        }
+        .menu-btn.secondary {
+            color: #0096ff;
+            border-color: #0096ff;
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3), inset 0 0 20px rgba(0, 150, 255, 0.1);
+        }
+        .menu-btn.secondary:hover, .menu-btn.secondary:active {
+            background: #0096ff;
+            color: #0a0a0f;
+            box-shadow: 0 0 40px rgba(0, 150, 255, 0.9);
+        }
+        .menu-btn.danger {
+            color: #ff4466;
+            border-color: #ff4466;
+            box-shadow: 0 0 20px rgba(255, 68, 102, 0.3), inset 0 0 20px rgba(255, 68, 102, 0.1);
+        }
+        .menu-btn.danger:hover, .menu-btn.danger:active {
+            background: #ff4466;
+            color: #0a0a0f;
+            box-shadow: 0 0 40px rgba(255, 68, 102, 0.9);
+        }
+
+        #deviceMenu h2, #helpMenu h2, #modeMenu h2, #settingsMenu h2, #botsMenu h2, #keyBindMenu h2 {
+            font-size: clamp(28px, 5vw, 48px);
+            color: #ffffff;
+            margin-bottom: 15px;
+            letter-spacing: 3px;
+        }
+        #deviceMenu .desc, #modeMenu .desc, #settingsMenu .desc, #botsMenu .desc, #keyBindMenu .desc {
+            color: #888;
+            font-size: clamp(14px, 2vw, 18px);
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+        .device-options {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+        .device-card {
+            width: clamp(160px, 22vw, 240px);
+            padding: clamp(20px, 3vw, 35px) clamp(15px, 2vw, 25px);
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid #333;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .device-card:hover, .device-card:active {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.08);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 255, 136, 0.3);
+        }
+        .device-card.selected {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.15);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+        .device-card.selected.medium { border-color: #ffcc00; background: rgba(255, 200, 0, 0.15); box-shadow: 0 0 30px rgba(255, 200, 0, 0.5); }
+        .device-card.selected.hard { border-color: #ff4466; background: rgba(255, 68, 102, 0.15); box-shadow: 0 0 30px rgba(255, 68, 102, 0.5); }
+        .device-card .icon {
+            font-size: clamp(45px, 7vw, 70px);
+            line-height: 1;
+            filter: drop-shadow(0 0 15px rgba(0, 255, 136, 0.6));
+        }
+        .device-card .name {
+            font-size: clamp(18px, 2.5vw, 22px);
+            font-weight: bold;
+            color: #fff;
+            letter-spacing: 2px;
+        }
+        .device-card .hint {
+            font-size: clamp(11px, 1.5vw, 13px);
+            color: #888;
+            line-height: 1.4;
+        }
+        .device-card.selected .hint { color: #00ff88; }
+        .device-card.selected.medium .hint { color: #ffcc00; }
+        .device-card.selected.hard .hint { color: #ff4466; }
+        
+        .key-card {
+            width: clamp(140px, 18vw, 180px);
+            padding: clamp(18px, 2.5vw, 28px) clamp(12px, 2vw, 20px);
+        }
+        .key-card .key-value {
+            font-family: monospace;
+            font-size: clamp(28px, 4vw, 40px);
+            font-weight: 900;
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 8px 20px;
+            letter-spacing: 3px;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4), inset 0 0 15px rgba(0, 255, 136, 0.1);
+            min-width: 80px;
+        }
+
+        /* === СЛАЙДЕР ГРОМКОСТИ === */
+        .volume-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid #333;
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 25px;
+            width: min(500px, 90vw);
+        }
+        .volume-section .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: #ffcc00;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+        .volume-section .value {
+            color: #00ff88;
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .volume-section input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #00ff88 0%, #00ff88 var(--val, 50%), #333 var(--val, 50%), #333 100%);
+            outline: none;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .volume-section input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.9);
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+        .volume-section input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.9);
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+        .volume-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .volume-row .icon {
+            font-size: 20px;
+            width: 30px;
+            text-align: center;
+        }
+        .volume-row .label {
+            color: #ccc;
+            font-size: 13px;
+            min-width: 100px;
+            text-align: left;
+            letter-spacing: 1px;
+        }
+        .volume-row input[type="range"] {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        #helpMenu .help-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid #333;
+            border-radius: 16px;
+            padding: 25px 40px;
+            margin-bottom: 25px;
+            max-width: 90vw;
+            width: 550px;
+        }
+        #helpMenu .help-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #222;
+            font-size: clamp(14px, 2vw, 18px);
+            gap: 20px;
+        }
+        #helpMenu .help-row:last-child { border-bottom: none; }
+        #helpMenu .help-key {
+            background: #1a1a2a;
+            border: 2px solid #00ff88;
+            border-radius: 6px;
+            padding: 6px 16px;
+            color: #00ff88;
+            font-weight: bold;
+            font-family: monospace;
+            white-space: nowrap;
+        }
+        #helpMenu .help-key.gold { border-color: #ffcc00; color: #ffcc00; }
+        #helpMenu .help-key.pink { border-color: #ff4466; color: #ff4466; }
+        #helpMenu .help-desc { color: #ccc; }
+
+        #ui {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: clamp(14px, 2vw, 20px);
+            display: flex;
+            gap: clamp(15px, 3vw, 40px);
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.8);
+            pointer-events: none;
+            z-index: 10;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 0 140px 0 20px;
+        }
+        #hearts {
+            display: flex;
+            gap: 5px;
+            font-size: clamp(18px, 3vw, 26px);
+        }
+        .heart {
+            transition: all 0.3s;
+            filter: drop-shadow(0 0 8px rgba(255, 50, 50, 0.9));
+        }
+        .heart.lost {
+            opacity: 0.2;
+            filter: none;
+            transform: scale(0.8);
+        }
+        #levelInfo {
+            color: #ffdd00;
+            text-shadow: 0 0 10px rgba(255, 220, 0, 0.8);
+        }
+        #aliveInfo {
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+        }
+        #heartTimer {
+            color: #ff66aa;
+            text-shadow: 0 0 10px rgba(255, 100, 170, 0.8);
+        }
+
+        #levelFlash {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            color: #ffdd00;
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: bold;
+            text-shadow: 0 0 30px rgba(255, 220, 0, 1);
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0;
+            white-space: nowrap;
+        }
+        #levelFlash.show { animation: levelUp 1.5s ease-out; }
+        @keyframes levelUp {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+            30% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+
+        #emoteHint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff88;
+            border-radius: 12px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 14px;
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+            pointer-events: none;
+        }
+        #emoteHint .key {
+            color: #00ff88;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        #emoteHint .row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #emoteHint .item {
+            color: #ccc;
+        }
+
+        #killFeed {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 12;
+            pointer-events: none;
+            align-items: flex-end;
+        }
+        .kill-msg {
+            background: rgba(0, 0, 0, 0.7);
+            border-left: 3px solid #ff4444;
+            padding: 8px 15px;
+            color: white;
+            font-size: 14px;
+            border-radius: 4px;
+            animation: killSlide 0.4s ease-out;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+            white-space: nowrap;
+        }
+        @keyframes killSlide {
+            0% { transform: translateX(50px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+
+        #gameOver {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            display: none;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.92);
+            padding: clamp(30px, 5vw, 50px) clamp(30px, 6vw, 80px);
+            border-radius: 15px;
+            border: 2px solid #0096ff;
+            box-shadow: 0 0 60px rgba(0, 150, 255, 0.8);
+            max-width: 90vw;
+        }
+        #gameOver h1 {
+            margin: 0 0 20px;
+            font-size: clamp(32px, 6vw, 56px);
+            color: #ff4444;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+            letter-spacing: 2px;
+        }
+        #gameOver h1.win {
+            color: #ffcc00;
+            text-shadow: 0 0 30px rgba(255, 200, 0, 1);
+        }
+        #gameOver p { font-size: clamp(16px, 2.5vw, 26px); margin: 10px 0; }
+        #gameOver .btn-row {
+            display: flex; gap: 15px;
+            justify-content: center; flex-wrap: wrap;
+            margin-top: 25px;
+        }
+        #gameOver button {
+            padding: clamp(12px, 2vw, 15px) clamp(25px, 4vw, 40px);
+            font-size: clamp(16px, 2vw, 20px);
+            background: #0096ff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            letter-spacing: 1px;
+            font-family: inherit;
+        }
+        #gameOver button:hover, #gameOver button:active {
+            background: #00c3ff;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 195, 255, 0.9);
+        }
+        #gameOver button.menu-btn-gameover {
+            background: transparent;
+            border: 2px solid #888;
+            color: #ccc;
+        }
+        #gameOver button.menu-btn-gameover:hover, #gameOver button.menu-btn-gameover:active {
+            background: #333;
+            border-color: #aaa;
+            color: white;
+        }
+
+        #damageFlash {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: red;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+        #damageFlash.show { animation: damage 0.4s ease-out; }
+        @keyframes damage {
+            0% { opacity: 0.5; }
+            100% { opacity: 0; }
+        }
+        
+        #healFlash {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #ff66aa;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 6;
+        }
+        #healFlash.show { animation: heal 0.6s ease-out; }
+        @keyframes heal {
+            0% { opacity: 0.3; }
+            100% { opacity: 0; }
+        }
+
+        #soundToggle, #pauseBtn {
+            position: fixed;
+            top: 15px;
+            background: rgba(0, 150, 255, 0.3);
+            border: 2px solid #0096ff;
+            color: white;
+            font-size: 22px;
+            width: 46px; height: 46px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 30;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+        #soundToggle { right: 15px; }
+        #pauseBtn {
+            right: 75px;
+            background: rgba(255, 200, 0, 0.3);
+            border-color: #ffcc00;
+            display: none;
+        }
+        #musicToggle {
+            position: fixed;
+            top: 15px;
+            right: 135px;
+            background: rgba(255, 100, 200, 0.3);
+            border: 2px solid #ff66cc;
+            color: white;
+            font-size: 22px;
+            width: 46px; height: 46px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 30;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+        #musicToggle:hover, #musicToggle:active {
+            background: rgba(255, 100, 200, 0.6);
+            transform: scale(1.1);
+        }
+
+        #joystick {
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            background: rgba(0, 255, 136, 0.08);
+            border: 3px solid rgba(0, 255, 136, 0.4);
+            display: none;
+            z-index: 50;
+            touch-action: none;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+        }
+        #joystick.active {
+            background: rgba(0, 255, 136, 0.15);
+            border-color: rgba(0, 255, 136, 0.8);
+        }
+        #joystickKnob {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 60px; height: 60px;
+            margin: -30px 0 0 -30px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00ff88 0%, #00aa55 100%);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.9);
+            pointer-events: none;
+        }
+        #joystickHint {
+            position: fixed;
+            bottom: 15px;
+            left: 45px;
+            color: rgba(0, 255, 136, 0.5);
+            font-size: 11px;
+            letter-spacing: 2px;
+            display: none;
+            z-index: 50;
+        }
+
+        #emoteBtn {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 200, 0, 0.2);
+            border: 3px solid #ffcc00;
+            color: white;
+            font-size: 36px;
+            cursor: pointer;
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(255, 200, 0, 0.5);
+            font-family: inherit;
+        }
+        #emoteBtn:active {
+            transform: scale(0.9);
+            background: rgba(255, 200, 0, 0.4);
+        }
+        #emoteMenu {
+            position: fixed;
+            bottom: 130px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ffcc00;
+            border-radius: 12px;
+            padding: 10px;
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 51;
+            box-shadow: 0 0 20px rgba(255, 200, 0, 0.5);
+        }
+        #emoteMenu.show { display: flex; }
+        #emoteMenu button {
+            background: transparent;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: white;
+            padding: 8px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        #emoteMenu button:active {
+            background: rgba(255, 200, 0, 0.2);
+            border-color: #ffcc00;
+        }
+
+        #keyBindModal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            flex-direction: column;
+            padding: 20px;
+        }
+        #keyBindModal.show { display: flex; }
+        #keyBindModal h2 {
+            color: #00ff88;
+            font-size: clamp(28px, 5vw, 44px);
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.8);
+            letter-spacing: 4px;
+            text-align: center;
+        }
+        #keyBindModal p {
+            color: #ccc;
+            font-size: clamp(14px, 2vw, 18px);
+            margin-bottom: 30px;
+            text-align: center;
+            max-width: 500px;
+        }
+        #keyBindDisplay {
+            font-family: monospace;
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 900;
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            border: 3px solid #00ff88;
+            border-radius: 16px;
+            padding: 20px 60px;
+            margin-bottom: 30px;
+            letter-spacing: 6px;
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.6), inset 0 0 30px rgba(0, 255, 136, 0.2);
+            min-width: 200px;
+            text-align: center;
+            animation: keyPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes keyPulse {
+            0%, 100% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.6), inset 0 0 30px rgba(0, 255, 136, 0.2); }
+            50% { box-shadow: 0 0 60px rgba(0, 255, 136, 0.9), inset 0 0 40px rgba(0, 255, 136, 0.4); }
+        }
+        #keyBindModal button {
+            padding: 14px 40px;
+            font-size: 18px;
+            background: transparent;
+            border: 2px solid #ff4466;
+            color: #ff4466;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+        #keyBindModal button:hover, #keyBindModal button:active {
+            background: #ff4466;
+            color: #0a0a0f;
+            box-shadow: 0 0 30px rgba(255, 68, 102, 0.9);
+        }
+
+        #pauseScreen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            color: white;
+            gap: 20px;
+            padding: 20px;
+        }
+        #pauseScreen h2 {
+            font-size: clamp(36px, 7vw, 64px);
+            color: #ffcc00;
+            text-shadow: 0 0 30px rgba(255, 200, 0, 0.8);
+            letter-spacing: 4px;
+            margin-bottom: 30px;
+        }
+        #pauseScreen.show { display: flex; }
+    </style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00ff88">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DEFBA">
+    </head>
+    <body>>
+    <div id="damageFlash"></div>
+    <div id="healFlash"></div>
+    <button id="soundToggle" title="Звук">🔊</button>
+    <button id="musicToggle" title="Музыка">🎵</button>
+    <button id="pauseBtn" title="Пауза">⏸</button>
+
+    <div id="ui" style="display:none;">
+        <div id="hearts">
+            <span class="heart">❤️</span>
+            <span class="heart">❤️</span>
+            <span class="heart">❤️</span>
+        </div>
+        <div>Время: <span id="time">0</span>с</div>
+        <div>Рекорд: <span id="best">0</span>с</div>
+        <div id="levelInfo">Уровень: <span id="level">1</span></div>
+        <div id="heartTimer" style="display:none;">💗 <span id="heartTimerVal">10</span>с</div>
+        <div id="aliveInfo" style="display:none;">Живых: <span id="alive">5</span></div>
+    </div>
+    <div id="levelFlash">УСКОРЕНИЕ!</div>
+    <div id="killFeed"></div>
+
+    <div id="emoteHint">
+        <div><span class="key" id="emoteKeyHint">H</span> + цифра для эмоции</div>
+        <div class="row">
+            <span class="item"><b style="color:#00ff88">1</b> 👏</span>
+            <span class="item"><b style="color:#00ff88">2</b> 😂</span>
+            <span class="item"><b style="color:#00ff88">3</b> 😭</span>
+            <span class="item"><b style="color:#00ff88">4</b> 😡</span>
+            <span class="item"><b style="color:#00ff88">5</b> 😄</span>
+        </div>
+    </div>
+
+    <div id="mainMenu" class="screen">
+        <h1>DEFBA</h1>
+        <div class="subtitle">Уворот от пуль</div>
+        <button class="menu-btn" id="btnPlay">▶ ИГРАТЬ</button>
+        <button class="menu-btn secondary" id="btnSettings">⚙ НАСТРОЙКИ</button>
+        <button class="menu-btn secondary" id="btnHelp">❓ УПРАВЛЕНИЕ</button>
+        <div style="margin-top:30px; color:#555; font-size:13px;">Рекорд: <span id="bestMenu">0</span>с</div>
+    </div>
+
+    <div id="modeMenu" class="screen hidden">
+        <h2>ВЫБЕРИ РЕЖИМ</h2>
+        <div class="desc">Как хочешь играть?</div>
+        <div class="device-options">
+            <div class="device-card" id="btnModeClassic">
+                <div class="icon">🎯</div>
+                <div class="name">КЛАССИКА</div>
+                <div class="hint">Просто уворачивайся</div>
+            </div>
+            <div class="device-card" id="btnModeBots">
+                <div class="icon">👥</div>
+                <div class="name">С БОТАМИ</div>
+                <div class="hint">4 бота • Last man standing</div>
+            </div>
+        </div>
+        <button class="menu-btn secondary" id="btnBackFromMode">← НАЗАД</button>
+    </div>
+
+    <div id="botsMenu" class="screen hidden">
+        <h2>СЛОЖНОСТЬ БОТОВ</h2>
+        <div class="desc">Насколько умными будут боты?</div>
+        <div class="device-options">
+            <div class="device-card easy" id="btnBotsEasy">
+                <div class="icon">🟢</div>
+                <div class="name">ЛЁГКИЕ</div>
+                <div class="hint">Реагируют только когда пуля близко</div>
+            </div>
+            <div class="device-card medium" id="btnBotsMedium">
+                <div class="icon">🟡</div>
+                <div class="name">СРЕДНИЕ</div>
+                <div class="hint">Видят пули заранее и готовятся</div>
+            </div>
+            <div class="device-card hard" id="btnBotsHard">
+                <div class="icon">🔴</div>
+                <div class="name">СЛОЖНЫЕ</div>
+                <div class="hint">Реагируют на выстрел сразу</div>
+            </div>
+        </div>
+        <button class="menu-btn secondary" id="btnBackFromBots">← НАЗАД</button>
+    </div>
+
+    <div id="deviceMenu" class="screen hidden">
+        <h2>ВЫБЕРИ УСТРОЙСТВО</h2>
+        <div class="desc">От этого зависит управление</div>
+        <div class="device-options">
+            <div class="device-card" id="btnPC">
+                <div class="icon">🖥️</div>
+                <div class="name">ПК</div>
+                <div class="hint">WASD / Стрелки</div>
+            </div>
+            <div class="device-card" id="btnMobile">
+                <div class="icon">📱</div>
+                <div class="name">ТЕЛЕФОН</div>
+                <div class="hint">Виртуальный джойстик</div>
+            </div>
+        </div>
+        <button class="menu-btn secondary" id="btnBackFromDevice">← НАЗАД</button>
+    </div>
+
+    <!-- НАСТРОЙКИ -->
+    <div id="settingsMenu" class="screen hidden">
+        <h2>⚙ НАСТРОЙКИ</h2>
+        <div class="desc">Разрешение, звук и управление</div>
+        
+        <div style="color: #ffcc00; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;">РАЗРЕШЕНИЕ:</div>
+        <div class="device-options" style="margin-bottom: 25px;">
+            <div class="device-card" id="btnResStandard">
+                <div class="icon">🖥️</div>
+                <div class="name">СТАНДАРТ</div>
+                <div class="hint">Полный экран (как есть)</div>
+            </div>
+            <div class="device-card" id="btnRes4x3">
+                <div class="icon">📺</div>
+                <div class="name">4:3</div>
+                <div class="hint">Растяг / ретро-формат</div>
+            </div>
+            <div class="device-card" id="btnRes16x10">
+                <div class="icon">💻</div>
+                <div class="name">16:10</div>
+                <div class="hint">Широкий формат</div>
+            </div>
+        </div>
+        
+        <div style="color: #ffcc00; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;">ГРОМКОСТЬ:</div>
+        <div class="volume-section">
+            <div class="volume-row">
+                <div class="icon">🎵</div>
+                <div class="label">МУЗЫКА</div>
+                <input type="range" id="volumeMusic" min="0" max="100" value="40">
+                <div class="value" id="volumeMusicVal" style="min-width:50px; text-align:right;">40%</div>
+            </div>
+            <div class="volume-row">
+                <div class="icon">🔊</div>
+                <div class="label">ЭФФЕКТЫ</div>
+                <input type="range" id="volumeSfx" min="0" max="100" value="70">
+                <div class="value" id="volumeSfxVal" style="min-width:50px; text-align:right;">70%</div>
+            </div>
+            <div class="volume-row" style="margin-top:15px; padding-top:15px; border-top:1px solid #333;">
+                <div class="icon">🎚️</div>
+                <div class="label">ОБЩАЯ</div>
+                <input type="range" id="volumeMaster" min="0" max="100" value="100">
+                <div class="value" id="volumeMasterVal" style="min-width:50px; text-align:right;">100%</div>
+            </div>
+        </div>
+        
+        <div style="color: #ffcc00; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;">КНОПКА ЭМОЦИЙ:</div>
+        <div class="device-options" style="margin-bottom: 30px;">
+            <div class="device-card key-card" id="btnKeyBind">
+                <div class="key-value" id="currentKeyDisplay">H</div>
+                <div class="hint">Нажми чтобы изменить</div>
+            </div>
+        </div>
+        
+        <button class="menu-btn secondary" id="btnBackFromSettings">← НАЗАД</button>
+    </div>
+
+    <div id="helpMenu" class="screen hidden">
+        <h2>УПРАВЛЕНИЕ</h2>
+        <div class="help-box">
+            <div class="help-row">
+                <span class="help-key">W A S D</span>
+                <span class="help-desc">Движение (ПК)</span>
+            </div>
+            <div class="help-row">
+                <span class="help-key">↑ ↓ ← →</span>
+                <span class="help-desc">Движение (ПК)</span>
+            </div>
+            <div class="help-row">
+                <span class="help-key">ДЖОЙСТИК</span>
+                <span class="help-desc">Движение (телефон)</span>
+            </div>
+            <div class="help-row">
+                <span class="help-key gold" id="helpEmoteKey">H + 1-5</span>
+                <span class="help-desc">Эмоции (1👏 2😂 3😭 4😡 5😄)</span>
+            </div>
+            <div class="help-row">
+                <span class="help-key pink">💗</span>
+                <span class="help-desc">Подбирай сердечки — они восстанавливают жизнь</span>
+            </div>
+            <div class="help-row">
+                <span class="help-key">⏸</span>
+                <span class="help-desc">Пауза</span>
+            </div>
+            <div class="help-row">
+                <span class="help-key">🔊</span>
+                <span class="help-desc">Вкл/выкл звук</span>
+            </div>
+            <div class="help-row">
+                <span class="help-key" style="border-color:#ff66cc; color:#ff66cc;">🎵</span>
+                <span class="help-desc">Вкл/выкл музыку</span>
+            </div>
+        </div>
+        <div style="color:#888; font-size:14px; margin-bottom:30px; max-width:500px; line-height:1.6;">
+            Уворачивайся от пуль, летящих со всех сторон.<br>
+            У тебя <b style="color:#ff4466;">3 жизни</b>. Каждые <b style="color:#ffcc00;">30 секунд</b> — ускорение!<br>
+            <b style="color:#00ff88;">Пули разбиваются о границу круга!</b><br>
+            <b style="color:#ff66aa;">Каждые 10 секунд появляется 💗 восстанавливающее жизнь!</b><br>
+            <b style="color:#ff66cc;">Музыка: #witchhravе2012</b>
+        </div>
+        <button class="menu-btn secondary" id="btnBackFromHelp">← НАЗАД</button>
+    </div>
+
+    <div id="keyBindModal">
+        <h2>НАЖМИ НОВУЮ КНОПКУ</h2>
+        <p>Нажми любую клавишу для эмоций<br>(кроме WASD, стрелок и Escape)</p>
+        <div id="keyBindDisplay">...</div>
+        <button id="btnCancelKeyBind">ОТМЕНА</button>
+    </div>
+
+    <div id="pauseScreen">
+        <h2>ПАУЗА</h2>
+        <button class="menu-btn" id="btnResume">▶ ПРОДОЛЖИТЬ</button>
+        <button class="menu-btn secondary" id="btnRestartPause">🔄 ЗАНОВО</button>
+        <button class="menu-btn danger" id="btnExitMenu">🏠 В МЕНЮ</button>
+    </div>
+
+    <div id="gameOver">
+        <h1 id="gameOverTitle">ИГРА ОКОНЧЕНА</h1>
+        <p id="gameOverText">Ты продержался: <span id="finalTime">0</span> секунд</p>
+        <p id="newRecord" style="color: #ffdd00; display: none;">🏆 НОВЫЙ РЕКОРД! 🏆</p>
+        <div class="btn-row">
+            <button id="btnRestartGame">🔄 ИГРАТЬ СНОВА</button>
+            <button class="menu-btn-gameover" id="btnGameOverMenu">🏠 В МЕНЮ</button>
+        </div>
+    </div>
+
+    <canvas id="game"></canvas>
+
+    <div id="joystick">
+        <div id="joystickKnob"></div>
+    </div>
+    <div id="joystickHint">ДЖОЙСТИК</div>
+
+    <button id="emoteBtn">😊</button>
+    <div id="emoteMenu">
+        <button data-emote="clap">👏 Похлопать</button>
+        <button data-emote="laugh">😂 Смех</button>
+        <button data-emote="cry">😭 Плакать</button>
+        <button data-emote="angry">😡 Злость</button>
+        <button data-emote="joy">😄 Радость</button>
+    </div>
+
+    <script>
+        // ===== МУЗЫКА =====
+        // Положи свой трек рядом с HTML и назови его: music.mp3
+        // (тот самый #witchhravе2012 — просто переименуй скачанный файл)
+        const bgMusic = new Audio();
+        bgMusic.src = 'music.mp3';  // <-- твой трек
+        bgMusic.loop = true;
+        bgMusic.preload = 'auto';
+        
+        // Громкости (0.0 - 1.0)
+        let musicVolume = parseFloat(localStorage.getItem('volumeMusic') ?? '0.4');
+        let sfxVolume = parseFloat(localStorage.getItem('volumeSfx') ?? '0.7');
+        let masterVolume = parseFloat(localStorage.getItem('volumeMaster') ?? '1.0');
+        let musicEnabled = localStorage.getItem('musicEnabled') !== 'false';
+        
+        let musicStarted = false;
+        
+        function updateMusicVolume() {
+            bgMusic.volume = musicVolume * masterVolume * (musicEnabled ? 1 : 0);
+        }
+        
+        function startMusic() {
+            if (!musicEnabled) return;
+            if (musicStarted) return;
+            musicStarted = true;
+            updateMusicVolume();
+            bgMusic.play().catch(e => {
+                // Браузер заблокировал автоплей — ждём первого клика
+                console.log('Автоплей музыки заблокирован — ждём клика');
+                musicStarted = false;
+            });
+        }
+        
+        function toggleMusic() {
+            musicEnabled = !musicEnabled;
+            localStorage.setItem('musicEnabled', musicEnabled);
+            updateMusicVolume();
+            
+            const btn = document.getElementById('musicToggle');
+            btn.textContent = musicEnabled ? '🎵' : '🔇';
+            btn.style.borderColor = musicEnabled ? '#ff66cc' : '#666';
+            btn.style.background = musicEnabled ? 'rgba(255, 100, 200, 0.3)' : 'rgba(0, 0, 0, 0.3)';
+            
+            if (musicEnabled && !musicStarted) {
+                startMusic();
+            }
+        }
+        
+        // Обновление визуального состояния кнопки при старте
+        function updateMusicToggleUI() {
+            const btn = document.getElementById('musicToggle');
+            btn.textContent = musicEnabled ? '🎵' : '🔇';
+            btn.style.borderColor = musicEnabled ? '#ff66cc' : '#666';
+            btn.style.background = musicEnabled ? 'rgba(255, 100, 200, 0.3)' : 'rgba(0, 0, 0, 0.3)';
+        }
+
+        // ===== DOM =====
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        let W, H;
+
+        const timeEl = document.getElementById('time');
+        const bestEl = document.getElementById('best');
+        const bestMenuEl = document.getElementById('bestMenu');
+        const levelEl = document.getElementById('level');
+        const heartsEl = document.getElementById('hearts');
+        const gameOverEl = document.getElementById('gameOver');
+        const gameOverTitle = document.getElementById('gameOverTitle');
+        const gameOverText = document.getElementById('gameOverText');
+        const finalTimeEl = document.getElementById('finalTime');
+        const newRecordEl = document.getElementById('newRecord');
+        const levelFlashEl = document.getElementById('levelFlash');
+        const damageFlashEl = document.getElementById('damageFlash');
+        const healFlashEl = document.getElementById('healFlash');
+        const uiEl = document.getElementById('ui');
+        const soundToggleEl = document.getElementById('soundToggle');
+        const musicToggleEl = document.getElementById('musicToggle');
+        const pauseBtnEl = document.getElementById('pauseBtn');
+        const pauseScreenEl = document.getElementById('pauseScreen');
+        const joystickEl = document.getElementById('joystick');
+        const joystickKnobEl = document.getElementById('joystickKnob');
+        const joystickHintEl = document.getElementById('joystickHint');
+        const aliveInfoEl = document.getElementById('aliveInfo');
+        const aliveEl = document.getElementById('alive');
+        const killFeedEl = document.getElementById('killFeed');
+        const emoteHintEl = document.getElementById('emoteHint');
+        const emoteBtnEl = document.getElementById('emoteBtn');
+        const emoteMenuEl = document.getElementById('emoteMenu');
+        const heartTimerEl = document.getElementById('heartTimer');
+        const heartTimerValEl = document.getElementById('heartTimerVal');
+        const emoteKeyHintEl = document.getElementById('emoteKeyHint');
+        const helpEmoteKeyEl = document.getElementById('helpEmoteKey');
+        const currentKeyDisplayEl = document.getElementById('currentKeyDisplay');
+        const keyBindModalEl = document.getElementById('keyBindModal');
+        const keyBindDisplayEl = document.getElementById('keyBindDisplay');
+
+        // Слайдеры громкости
+        const volumeMusicEl = document.getElementById('volumeMusic');
+        const volumeSfxEl = document.getElementById('volumeSfx');
+        const volumeMasterEl = document.getElementById('volumeMaster');
+        const volumeMusicValEl = document.getElementById('volumeMusicVal');
+        const volumeSfxValEl = document.getElementById('volumeSfxVal');
+        const volumeMasterValEl = document.getElementById('volumeMasterVal');
+
+        const mainMenuEl = document.getElementById('mainMenu');
+        const modeMenuEl = document.getElementById('modeMenu');
+        const deviceMenuEl = document.getElementById('deviceMenu');
+        const helpMenuEl = document.getElementById('helpMenu');
+        const settingsMenuEl = document.getElementById('settingsMenu');
+        const botsMenuEl = document.getElementById('botsMenu');
+
+        let controlMode = 'pc';
+        let gameMode = 'classic';
+        let resolutionMode = 'standard';
+        let botDifficulty = 'medium';
+        let emoteKey = localStorage.getItem('emoteKey') || 'h';
+        let emoteKeyDisplay = emoteKey.toUpperCase();
+        let waitingForKey = false;
+        
+        let bestTime = parseFloat(localStorage.getItem('bestTime') || '0');
+        bestEl.textContent = bestTime.toFixed(1);
+        bestMenuEl.textContent = bestTime.toFixed(1);
+
+        const savedRes = localStorage.getItem('resolutionMode');
+        if (savedRes) resolutionMode = savedRes;
+        const savedDiff = localStorage.getItem('botDifficulty');
+        if (savedDiff) botDifficulty = savedDiff;
+
+        function updateKeyDisplays() {
+            emoteKeyHintEl.textContent = emoteKeyDisplay;
+            helpEmoteKeyEl.textContent = emoteKeyDisplay + ' + 1-5';
+            currentKeyDisplayEl.textContent = emoteKeyDisplay;
+        }
+        updateKeyDisplays();
+        updateMusicToggleUI();
+
+        function updateBestDisplay() {
+            bestEl.textContent = bestTime.toFixed(1);
+            bestMenuEl.textContent = bestTime.toFixed(1);
+        }
+
+        function getArenaRadius() {
+            return Math.min(W, H) / 2 - 40;
+        }
+
+        function clampToArena(entity) {
+            const cx = W / 2;
+            const cy = H / 2;
+            const arenaR = getArenaRadius();
+            const dx = entity.x - cx;
+            const dy = entity.y - cy;
+            const dist = Math.hypot(dx, dy);
+            const maxDist = arenaR - entity.radius;
+            
+            if (dist > maxDist) {
+                const scale = maxDist / dist;
+                entity.x = cx + dx * scale;
+                entity.y = cy + dy * scale;
+            }
+        }
+
+        function applyResolution() {
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            
+            let canvasW, canvasH, styleW, styleH;
+            
+            if (resolutionMode === '4:3') {
+                const targetRatio = 4 / 3;
+                const screenRatio = screenW / screenH;
+                if (screenRatio > targetRatio) {
+                    canvasH = screenH;
+                    canvasW = Math.round(canvasH * targetRatio);
+                } else {
+                    canvasW = screenW;
+                    canvasH = Math.round(canvasW / targetRatio);
+                }
+                styleW = screenW;
+                styleH = screenH;
+            } else if (resolutionMode === '16:10') {
+                const targetRatio = 16 / 10;
+                const screenRatio = screenW / screenH;
+                if (screenRatio > targetRatio) {
+                    canvasH = screenH;
+                    canvasW = Math.round(canvasH * targetRatio);
+                } else {
+                    canvasW = screenW;
+                    canvasH = Math.round(canvasW / targetRatio);
+                }
+                styleW = screenW;
+                styleH = screenH;
+            } else {
+                canvasW = screenW;
+                canvasH = screenH;
+                styleW = screenW;
+                styleH = screenH;
+            }
+            
+            W = canvas.width = canvasW;
+            H = canvas.height = canvasH;
+            canvas.style.width = styleW + 'px';
+            canvas.style.height = styleH + 'px';
+            
+            repositionCannons();
+            if (player) clampToArena(player);
+            bots.forEach(b => clampToArena(b));
+        }
+
+        window.addEventListener('resize', applyResolution);
+
+        // ===== ЗВУК =====
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {}
+            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playTone(freq, duration, type, volume, freqEnd = null) {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                if (freqEnd !== null) {
+                    osc.frequency.exponentialRampToValueAtTime(freqEnd, audioCtx.currentTime + duration);
+                }
+                // Применяем громкость эффектов × мастер
+                const finalVol = volume * sfxVolume * masterVolume;
+                gain.gain.setValueAtTime(finalVol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function soundShoot() { playTone(220, 0.08, 'square', 0.05, 80); }
+        function soundDamage() { playTone(150, 0.4, 'sawtooth', 0.2, 40); }
+        function soundDoubleShot() { playTone(400, 0.12, 'square', 0.06, 100); }
+        function soundBotDeath() { playTone(300, 0.5, 'sawtooth', 0.15, 60); }
+        function soundBulletBreak() { playTone(800, 0.15, 'triangle', 0.08, 200); }
+        
+        function soundHeartCollect() {
+            if (!soundEnabled || !audioCtx) return;
+            [659, 784, 988, 1319].forEach((f, i) => {
+                setTimeout(() => playTone(f, 0.2, 'sine', 0.15), i * 70);
+            });
+        }
+        
+        function soundHeartSpawn() {
+            if (!soundEnabled || !audioCtx) return;
+            [880, 1175].forEach((f, i) => {
+                setTimeout(() => playTone(f, 0.15, 'sine', 0.08), i * 100);
+            });
+        }
+        
+        function soundVictory() {
+            if (!soundEnabled || !audioCtx) return;
+            [523, 659, 784, 1047, 1319].forEach((f, i) => {
+                setTimeout(() => playTone(f, 0.4, 'triangle', 0.12), i * 120);
+            });
+        }
+        function soundLevelUp() {
+            if (!soundEnabled || !audioCtx) return;
+            [523, 659, 784, 1047].forEach((f, i) => {
+                setTimeout(() => playTone(f, 0.3, 'triangle', 0.1), i * 80);
+            });
+        }
+        function soundGameOver() {
+            if (!soundEnabled || !audioCtx) return;
+            [440, 349, 293, 196].forEach((f, i) => {
+                setTimeout(() => playTone(f, 0.3, 'sawtooth', 0.15), i * 150);
+            });
+        }
+        function soundClick() { playTone(600, 0.05, 'sine', 0.1, 900); }
+
+        function soundClap() {
+            if (!soundEnabled || !audioCtx) return;
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    try {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(150 + Math.random() * 100, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.05);
+                        const finalVol = 0.15 * sfxVolume * masterVolume;
+                        gain.gain.setValueAtTime(finalVol, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.06);
+                    } catch (e) {}
+                }, i * 110);
+            }
+        }
+
+        function soundLaugh() {
+            if (!soundEnabled || !audioCtx) return;
+            const haCount = 6;
+            const volMul = sfxVolume * masterVolume;
+            for (let i = 0; i < haCount; i++) {
+                const delay = i * 130 + Math.random() * 30;
+                setTimeout(() => {
+                    try {
+                        const osc = audioCtx.createOscillator();
+                        const osc2 = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sawtooth';
+                        const baseFreq = 320 + Math.random() * 180;
+                        osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, audioCtx.currentTime + 0.12);
+                        osc2.type = 'square';
+                        osc2.frequency.setValueAtTime(baseFreq * 1.5, audioCtx.currentTime);
+                        osc2.frequency.exponentialRampToValueAtTime(baseFreq * 0.8, audioCtx.currentTime + 0.12);
+                        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.18 * volMul, audioCtx.currentTime + 0.01);
+                        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.13);
+                        osc.connect(gain);
+                        osc2.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc2.start();
+                        osc.stop(audioCtx.currentTime + 0.13);
+                        osc2.stop(audioCtx.currentTime + 0.13);
+                    } catch (e) {}
+                }, delay);
+            }
+            setTimeout(() => {
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => {
+                        try {
+                            const osc = audioCtx.createOscillator();
+                            const gain = audioCtx.createGain();
+                            osc.type = 'sawtooth';
+                            const f = 400 + Math.random() * 200;
+                            osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+                            osc.frequency.exponentialRampToValueAtTime(f * 0.5, audioCtx.currentTime + 0.08);
+                            gain.gain.setValueAtTime(0.15 * volMul, audioCtx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+                            osc.connect(gain);
+                            gain.connect(audioCtx.destination);
+                            osc.start();
+                            osc.stop(audioCtx.currentTime + 0.08);
+                        } catch (e) {}
+                    }, i * 70);
+                }
+            }, 850);
+        }
+
+        function soundCry() {
+            if (!soundEnabled || !audioCtx) return;
+            for (let i = 0; i < 4; i++) {
+                setTimeout(() => {
+                    try {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        const baseFreq = 500 - i * 40;
+                        osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, audioCtx.currentTime + 0.35);
+                        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.1 * sfxVolume * masterVolume, audioCtx.currentTime + 0.1);
+                        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.4);
+                    } catch (e) {}
+                }, i * 350);
+            }
+        }
+
+        function soundAngry() {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.5);
+                osc2.type = 'square';
+                osc2.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc2.frequency.exponentialRampToValueAtTime(90, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.15 * sfxVolume * masterVolume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                osc.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc2.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+                osc2.stop(audioCtx.currentTime + 0.5);
+            } catch (e) {}
+        }
+
+        function soundJoy() {
+            if (!soundEnabled || !audioCtx) return;
+            [523, 659, 784, 1047, 1319].forEach((f, i) => {
+                setTimeout(() => {
+                    playTone(f, 0.15, 'triangle', 0.12);
+                }, i * 80);
+            });
+        }
+
+        soundToggleEl.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            soundToggleEl.textContent = soundEnabled ? '🔊' : '🔇';
+            if (soundEnabled) { initAudio(); soundClick(); }
+        });
+
+        musicToggleEl.addEventListener('click', toggleMusic);
+
+        // ===== ЭМОЦИИ =====
+        const EMOTES = {
+            clap:  { emoji: '👏', duration: 2.0, sound: soundClap,  label: 'Похлопать' },
+            laugh: { emoji: '😂', duration: 2.2, sound: soundLaugh, label: 'Смех' },
+            cry:   { emoji: '😭', duration: 2.0, sound: soundCry,   label: 'Плакать' },
+            angry: { emoji: '😡', duration: 1.5, sound: soundAngry, label: 'Злость' },
+            joy:   { emoji: '😄', duration: 1.5, sound: soundJoy,   label: 'Радость' }
+        };
+
+        const activeEmotes = new Map();
+
+        function triggerEmote(entity, type) {
+            if (!entity || !entity.alive) return;
+            const emote = EMOTES[type];
+            if (!emote) return;
+            
+            activeEmotes.set(entity, {
+                type: type,
+                timeLeft: emote.duration,
+                totalTime: emote.duration,
+                particles: [],
+                particleTimer: 0
+            });
+            
+            emote.sound();
+        }
+
+        function updateEmotes(dt) {
+            for (const [entity, emote] of activeEmotes.entries()) {
+                if (!entity.alive) {
+                    activeEmotes.delete(entity);
+                    continue;
+                }
+                
+                emote.timeLeft -= dt;
+                if (emote.timeLeft <= 0) {
+                    activeEmotes.delete(entity);
+                    continue;
+                }
+                
+                if (emote.type !== 'clap') {
+                    emote.particleTimer -= dt;
+                    if (emote.particleTimer <= 0) {
+                        emote.particleTimer = emote.type === 'laugh' ? 0.15 : 0.3;
+                        
+                        const emoji = EMOTES[emote.type].emoji;
+                        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+                        const speed = 40 + Math.random() * 40;
+                        
+                        emote.particles.push({
+                            x: entity.x + (Math.random() - 0.5) * 20,
+                            y: entity.y - entity.radius - 5,
+                            vx: Math.cos(angle) * speed * 0.3,
+                            vy: Math.sin(angle) * speed,
+                            life: 0.8,
+                            maxLife: 0.8,
+                            emoji: emoji,
+                            size: 14 + Math.random() * 8
+                        });
+                    }
+                }
+                
+                for (let i = emote.particles.length - 1; i >= 0; i--) {
+                    const p = emote.particles[i];
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.vy += 50 * dt;
+                    p.life -= dt;
+                    if (p.life <= 0) emote.particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawEmotes() {
+            for (const [entity, emote] of activeEmotes.entries()) {
+                const mainEmoji = EMOTES[emote.type].emoji;
+                const bob = Math.sin((emote.totalTime - emote.timeLeft) * 8) * 3;
+                
+                if (emote.type === 'clap') {
+                    const t = emote.totalTime - emote.timeLeft;
+                    const clapPhase = Math.sin(t * 10);
+                    
+                    ctx.save();
+                    ctx.globalAlpha = Math.min(1, emote.timeLeft * 2);
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    ctx.fillText('👏', entity.x - 25 - clapPhase * 5, entity.y - entity.radius - 15);
+                    ctx.save();
+                    ctx.translate(entity.x + 25 + clapPhase * 5, entity.y - entity.radius - 15);
+                    ctx.scale(-1, 1);
+                    ctx.fillText('👏', 0, 0);
+                    ctx.restore();
+                    
+                    ctx.restore();
+                } else {
+                    ctx.save();
+                    ctx.globalAlpha = Math.min(1, emote.timeLeft * 2);
+                    ctx.font = '28px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.shadowColor = '#ffffff';
+                    ctx.shadowBlur = 15;
+                    ctx.fillText(mainEmoji, entity.x, entity.y - entity.radius - 25 + bob);
+                    ctx.restore();
+                }
+                
+                for (const p of emote.particles) {
+                    const alpha = p.life / p.maxLife;
+                    ctx.save();
+                    ctx.globalAlpha = alpha;
+                    ctx.font = `${p.size}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(p.emoji, p.x, p.y);
+                    ctx.restore();
+                }
+            }
+        }
+
+        // ===== ИГРОК =====
+        const player = {
+            x: 0, y: 0,
+            radius: 15,
+            speed: 5.5,
+            color: '#00ff88',
+            trail: [],
+            invulnerable: 0,
+            isPlayer: true,
+            alive: true,
+            vx: 0, vy: 0
+        };
+
+        const bots = [];
+        const BOT_COUNT = 4;
+        const BOT_NAMES = ['АЛЬФА', 'БРАВО', 'ЧАРЛИ', 'ДЕЛЬТА'];
+        const BOT_COLORS = ['#ff6666', '#66aaff', '#ffaa00', '#cc66ff'];
+
+        const BOT_CONFIG = {
+            easy: {
+                visionRange: 120,
+                visionTime: 0.35,
+                reactionDelay: 0.35,
+                smoothing: 6,
+                evadeSmoothing: 10,
+                threatRadiusMul: 1.5
+            },
+            medium: {
+                visionRange: 350,
+                visionTime: 0.9,
+                reactionDelay: 0.12,
+                smoothing: 8,
+                evadeSmoothing: 14,
+                threatRadiusMul: 2.2
+            },
+            hard: {
+                visionRange: 9999,
+                visionTime: 1.8,
+                reactionDelay: 0.0,
+                smoothing: 10,
+                evadeSmoothing: 20,
+                threatRadiusMul: 3.0
+            }
+        };
+
+        let lives = 3;
+        const maxLives = 3;
+        let level = 1;
+        const LEVEL_TIME = 30;
+
+        const HEART_SPAWN_INTERVAL = 10;
+        const HEART_LIFETIME = 8;
+        const HEART_RADIUS = 14;
+        
+        let heartItems = [];
+        let heartSpawnTimer = HEART_SPAWN_INTERVAL;
+        let nextHeartId = 0;
+
+        const keys = {};
+        let emoteKeyPressed = false;
+
+        document.addEventListener('keydown', e => {
+            const key = e.key.toLowerCase();
+            
+            if (waitingForKey) {
+                e.preventDefault();
+                
+                const forbidden = ['w', 'a', 's', 'd', 'ц', 'ф', 'ы', 'в', 
+                                  'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+                                  'escape'];
+                if (forbidden.includes(key)) {
+                    keyBindDisplayEl.textContent = '❌';
+                    setTimeout(() => {
+                        keyBindDisplayEl.textContent = '...';
+                    }, 500);
+                    return;
+                }
+                
+                emoteKey = key;
+                emoteKeyDisplay = key.toUpperCase();
+                localStorage.setItem('emoteKey', emoteKey);
+                updateKeyDisplays();
+                soundClick();
+                
+                keyBindDisplayEl.textContent = emoteKeyDisplay;
+                
+                setTimeout(() => {
+                    waitingForKey = false;
+                    keyBindModalEl.classList.remove('show');
+                }, 600);
+                return;
+            }
+            
+            keys[key] = true;
+            
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) {
+                e.preventDefault();
+            }
+            
+            if (key === emoteKey) {
+                emoteKeyPressed = true;
+                clearTimeout(window._emoteTimeout);
+                window._emoteTimeout = setTimeout(() => { emoteKeyPressed = false; }, 2000);
+            }
+            
+            if (emoteKeyPressed && running) {
+                const emoteMap = {
+                    '1': 'clap',
+                    '2': 'laugh',
+                    '3': 'cry',
+                    '4': 'angry',
+                    '5': 'joy'
+                };
+                
+                if (emoteMap[key]) {
+                    triggerEmote(player, emoteMap[key]);
+                    emoteKeyPressed = false;
+                    clearTimeout(window._emoteTimeout);
+                }
+            }
+        });
+        
+        document.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        const cannons = [];
+        const cannonCount = 8;
+
+        function repositionCannons() {
+            const arenaR = getArenaRadius();
+            cannons.forEach((c, i) => {
+                const angle = (i / cannonCount) * Math.PI * 2 - Math.PI / 2;
+                const radius = arenaR + 18;
+                c.x = W / 2 + Math.cos(angle) * radius;
+                c.y = H / 2 + Math.sin(angle) * radius;
+                c.baseAngle = angle;
+            });
+        }
+
+        function initCannons() {
+            cannons.length = 0;
+            for (let i = 0; i < cannonCount; i++) {
+                cannons.push({ x: 0, y: 0, angle: 0, color: '#ff3366', flash: 0, baseAngle: 0 });
+            }
+            repositionCannons();
+        }
+
+        let bullets = [];
+        let particles = [];
+        let boundaryParticles = [];
+        let heartParticles = [];
+        let gameTime = 0;
+        let running = false;
+        let paused = false;
+        let lastTime = performance.now();
+        let spawnTimer = 0;
+        let nextLevelTime = LEVEL_TIME;
+
+        function getSpawnInterval() {
+            return Math.max(0.12, 0.8 - (level - 1) * 0.12);
+        }
+
+        function getBulletSpeed() {
+            return 3 + (level - 1) * 1.2 + Math.min(gameTime * 0.05, 2);
+        }
+
+        function predictTarget(target, cannonX, cannonY, bulletSpeed) {
+            const dx = target.x - cannonX;
+            const dy = target.y - cannonY;
+            const dist = Math.hypot(dx, dy);
+            if (Math.hypot(target.vx || 0, target.vy || 0) < 0.5) {
+                return { x: target.x, y: target.y };
+            }
+            let t = dist / bulletSpeed;
+            for (let i = 0; i < 3; i++) {
+                const px = target.x + (target.vx || 0) * t * 60;
+                const py = target.y + (target.vy || 0) * t * 60;
+                t = Math.hypot(px - cannonX, py - cannonY) / bulletSpeed;
+            }
+            return {
+                x: target.x + (target.vx || 0) * t * 60,
+                y: target.y + (target.vy || 0) * t * 60
+            };
+        }
+
+        function getAllTargets() {
+            const targets = [];
+            if (player.alive) targets.push(player);
+            bots.forEach(b => { if (b.alive) targets.push(b); });
+            return targets;
+        }
+
+        function getTargetAngle(cannon) {
+            let target;
+            if (gameMode === 'bots') {
+                const targets = getAllTargets();
+                if (targets.length === 0) return null;
+                target = targets[Math.floor(Math.random() * targets.length)];
+            } else {
+                if (!player.alive) return null;
+                target = player;
+            }
+            const usePredict = Math.random() < 0.35;
+            const bulletSpeed = getBulletSpeed();
+            let aimX, aimY;
+            if (usePredict) {
+                const predicted = predictTarget(target, cannon.x, cannon.y, bulletSpeed);
+                aimX = predicted.x;
+                aimY = predicted.y;
+            } else {
+                aimX = target.x;
+                aimY = target.y;
+            }
+            return Math.atan2(aimY - cannon.y, aimX - cannon.x);
+        }
+
+        function getCannonDisplayAngle(cannon) {
+            let target = null;
+            if (gameMode === 'bots') {
+                const targets = getAllTargets();
+                if (targets.length > 0) {
+                    let nearest = null;
+                    let nearestDist = Infinity;
+                    targets.forEach(t => {
+                        const d = Math.hypot(t.x - cannon.x, t.y - cannon.y);
+                        if (d < nearestDist) { nearestDist = d; nearest = t; }
+                    });
+                    target = nearest;
+                }
+            } else {
+                if (player.alive) target = player;
+            }
+            
+            if (target) {
+                return Math.atan2(target.y - cannon.y, target.x - cannon.x);
+            }
+            return cannon.baseAngle;
+        }
+
+        function fireFromCannon(cannon, extraSpread = 0) {
+            cannon.flash = 0.15;
+            const baseAngle = getTargetAngle(cannon);
+            if (baseAngle === null) return;
+            const spread = 0.15 + extraSpread;
+            const angle = baseAngle + (Math.random() - 0.5) * spread;
+            const speed = getBulletSpeed();
+            
+            const spawnX = cannon.x;
+            const spawnY = cannon.y;
+            const distFromCenter = Math.hypot(spawnX - W/2, spawnY - H/2);
+            const isInside = distFromCenter < getArenaRadius() - 6;
+            
+            bullets.push({
+                x: spawnX, y: spawnY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                radius: 6, color: '#ffaa00', life: 10,
+                insideArena: isInside
+            });
+            
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: cannon.x, y: cannon.y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 0.4, maxLife: 0.4,
+                    color: '#ffaa00', size: 3
+                });
+            }
+        }
+
+        function fireSecondBullet(cannon) {
+            const baseAngle = getTargetAngle(cannon);
+            if (baseAngle === null) return;
+            const angle = baseAngle + (Math.random() - 0.5) * 0.3;
+            const speed = getBulletSpeed();
+            
+            const spawnX = cannon.x;
+            const spawnY = cannon.y;
+            const distFromCenter = Math.hypot(spawnX - W/2, spawnY - H/2);
+            const isInside = distFromCenter < getArenaRadius() - 6;
+            
+            bullets.push({
+                x: spawnX, y: spawnY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                radius: 6, color: '#ffaa00', life: 10,
+                insideArena: isInside
+            });
+        }
+
+        function spawnBullets() {
+            if (gameMode === 'classic' && !player.alive) return;
+            if (gameMode === 'bots' && getAllTargets().length === 0) return;
+
+            const simultaneousChance = Math.min(0.7, 0.25 + (level - 1) * 0.07);
+            
+            if (Math.random() < simultaneousChance) {
+                const maxShooters = Math.min(4, 2 + Math.floor(level / 2));
+                const count = 2 + Math.floor(Math.random() * (maxShooters - 1));
+                const shuffled = [...cannons].sort(() => Math.random() - 0.5);
+                const shooters = shuffled.slice(0, Math.min(count, cannons.length));
+                shooters.forEach(c => fireFromCannon(c, 0.05));
+                soundShoot();
+            } else {
+                const cannon = cannons[Math.floor(Math.random() * cannons.length)];
+                const doubleChance = Math.min(0.6, 0.05 + (level - 1) * 0.07);
+                if (Math.random() < doubleChance) {
+                    fireFromCannon(cannon, 0.15);
+                    cannon.flash = 0.2;
+                    fireSecondBullet(cannon);
+                    soundDoubleShot();
+                } else {
+                    fireFromCannon(cannon, 0);
+                    soundShoot();
+                }
+            }
+        }
+
+        function spawnHeart() {
+            const arenaR = getArenaRadius();
+            const maxR = arenaR - 60;
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.sqrt(Math.random()) * maxR;
+            
+            const x = W / 2 + Math.cos(angle) * r;
+            const y = H / 2 + Math.sin(angle) * r;
+            
+            heartItems.push({
+                id: nextHeartId++,
+                x: x, y: y,
+                radius: HEART_RADIUS,
+                life: HEART_LIFETIME,
+                maxLife: HEART_LIFETIME,
+                spawnTime: 0,
+                bobPhase: Math.random() * Math.PI * 2
+            });
+            
+            soundHeartSpawn();
+            
+            for (let i = 0; i < 15; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const s = 30 + Math.random() * 60;
+                heartParticles.push({
+                    x: x, y: y,
+                    vx: Math.cos(a) * s,
+                    vy: Math.sin(a) * s,
+                    life: 0.6, maxLife: 0.6,
+                    color: Math.random() > 0.5 ? '#ff66aa' : '#ff99cc',
+                    size: 3 + Math.random() * 3
+                });
+            }
+            
+            addKillMessage('💗 Сердечко появилось!', '#ff66aa');
+        }
+
+        function collectHeart(heart, entity) {
+            if (entity === player) {
+                if (lives < maxLives) {
+                    lives++;
+                    updateHearts();
+                }
+                
+                healFlashEl.classList.remove('show');
+                void healFlashEl.offsetWidth;
+                healFlashEl.classList.add('show');
+                
+                soundHeartCollect();
+                addKillMessage('💗 +1 ЖИЗНЬ', '#ff66aa');
+                
+                for (let i = 0; i < 25; i++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const s = 50 + Math.random() * 100;
+                    heartParticles.push({
+                        x: entity.x, y: entity.y,
+                        vx: Math.cos(a) * s,
+                        vy: Math.sin(a) * s,
+                        life: 0.8, maxLife: 0.8,
+                        color: Math.random() > 0.5 ? '#ff66aa' : '#ffffff',
+                        size: 3 + Math.random() * 4
+                    });
+                }
+            }
+        }
+
+        function createExplosion(x, y, color = '#ff4444') {
+            for (let i = 0; i < 30; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const s = 2 + Math.random() * 6;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(a) * s,
+                    vy: Math.sin(a) * s,
+                    life: 0.8, maxLife: 0.8,
+                    color: Math.random() > 0.5 ? color : '#ffaa00',
+                    size: 3 + Math.random() * 4
+                });
+            }
+        }
+
+        function createBulletBreak(x, y) {
+            for (let i = 0; i < 12; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const s = 2 + Math.random() * 4;
+                boundaryParticles.push({
+                    x, y,
+                    vx: Math.cos(a) * s,
+                    vy: Math.sin(a) * s,
+                    life: 0.5, maxLife: 0.5,
+                    color: Math.random() > 0.5 ? '#ffcc00' : '#ff6600',
+                    size: 3 + Math.random() * 3
+                });
+            }
+            soundBulletBreak();
+        }
+
+        function updateHearts() {
+            const hearts = heartsEl.querySelectorAll('.heart');
+            hearts.forEach((h, i) => {
+                if (i < lives) h.classList.remove('lost');
+                else h.classList.add('lost');
+            });
+        }
+
+        function updateAliveCount() {
+            if (gameMode !== 'bots') return;
+            let count = player.alive ? 1 : 0;
+            bots.forEach(b => { if (b.alive) count++; });
+            aliveEl.textContent = count;
+        }
+
+        function addKillMessage(text, color = '#ff4444') {
+            const msg = document.createElement('div');
+            msg.className = 'kill-msg';
+            msg.style.borderLeftColor = color;
+            msg.textContent = text;
+            killFeedEl.appendChild(msg);
+            setTimeout(() => {
+                msg.style.transition = 'opacity 0.5s';
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 500);
+            }, 2500);
+        }
+
+        function takeDamage() {
+            if (player.invulnerable > 0 || !player.alive) return;
+            lives--;
+            updateHearts();
+            createExplosion(player.x, player.y, '#00ff88');
+            soundDamage();
+            damageFlashEl.classList.remove('show');
+            void damageFlashEl.offsetWidth;
+            damageFlashEl.classList.add('show');
+            
+            if (lives <= 0) {
+                player.alive = false;
+                createExplosion(player.x, player.y, '#00ff88');
+                addKillMessage('💀 ТЫ ПОГИБ', '#ff4444');
+                updateAliveCount();
+                
+                if (gameMode === 'bots') {
+                    const aliveBots = bots.filter(b => b.alive);
+                    if (aliveBots.length <= 1) {
+                        running = false;
+                        endGame('lose');
+                        return;
+                    }
+                } else {
+                    running = false;
+                    endGame('lose');
+                    return;
+                }
+                return;
+            }
+            
+            player.invulnerable = 1.5;
+            player.x = W / 2;
+            player.y = H / 2;
+        }
+
+        function damageBot(bot) {
+            if (bot.invulnerable > 0 || !bot.alive) return;
+            bot.hp--;
+            createExplosion(bot.x, bot.y, bot.color);
+            soundBotDeath();
+            
+            if (bot.hp <= 0) {
+                bot.alive = false;
+                createExplosion(bot.x, bot.y, bot.color);
+                addKillMessage(`💀 ${bot.name} УНИЧТОЖЕН`, bot.color);
+                updateAliveCount();
+                
+                const aliveBots = bots.filter(b => b.alive);
+                if (aliveBots.length === 0 && player.alive) {
+                    running = false;
+                    endGame('win');
+                    return;
+                }
+            } else {
+                bot.invulnerable = 1.0;
+            }
+        }
+
+        function levelUp() {
+            level++;
+            levelEl.textContent = level;
+            soundLevelUp();
+            levelFlashEl.classList.remove('show');
+            void levelFlashEl.offsetWidth;
+            levelFlashEl.classList.add('show');
+            cannons.forEach(c => c.flash = 0.5);
+        }
+
+        const joystick = {
+            active: false, touchId: null,
+            centerX: 0, centerY: 0,
+            dx: 0, dy: 0, maxDist: 50
+        };
+
+        function setupJoystick() {
+            const rect = joystickEl.getBoundingClientRect();
+            joystick.centerX = rect.left + rect.width / 2;
+            joystick.centerY = rect.top + rect.height / 2;
+        }
+
+        joystickEl.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            joystick.active = true;
+            joystick.touchId = touch.identifier;
+            joystickEl.classList.add('active');
+            setupJoystick();
+            updateJoystick(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        joystickEl.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystick.touchId) {
+                    updateJoystick(touch.clientX, touch.clientY);
+                }
+            }
+        }, { passive: false });
+
+        function endJoystick(e) {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystick.touchId) {
+                    joystick.active = false;
+                    joystick.touchId = null;
+                    joystick.dx = 0; joystick.dy = 0;
+                    joystickEl.classList.remove('active');
+                    joystickKnobEl.style.transform = 'translate(0px, 0px)';
+                }
+            }
+        }
+        joystickEl.addEventListener('touchend', endJoystick);
+        joystickEl.addEventListener('touchcancel', endJoystick);
+
+        function updateJoystick(x, y) {
+            let dx = x - joystick.centerX;
+            let dy = y - joystick.centerY;
+            const dist = Math.hypot(dx, dy);
+            const maxDist = 50;
+            if (dist > maxDist) {
+                dx = (dx / dist) * maxDist;
+                dy = (dy / dist) * maxDist;
+            }
+            joystick.dx = dx / maxDist;
+            joystick.dy = dy / maxDist;
+            joystickKnobEl.style.transform = `translate(${dx}px, ${dy}px)`;
+        }
+
+        emoteBtnEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            emoteMenuEl.classList.toggle('show');
+            soundClick();
+        });
+
+        emoteMenuEl.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const type = btn.dataset.emote;
+                if (type && player.alive) {
+                    triggerEmote(player, type);
+                }
+                emoteMenuEl.classList.remove('show');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!emoteMenuEl.contains(e.target) && e.target !== emoteBtnEl) {
+                emoteMenuEl.classList.remove('show');
+            }
+        });
+
+        function updateBot(bot, dt) {
+            if (!bot.alive) return;
+            if (bot.invulnerable > 0) bot.invulnerable -= dt;
+            
+            const cfg = BOT_CONFIG[botDifficulty];
+            
+            if (!bot.nextEmoteTime) bot.nextEmoteTime = 5 + Math.random() * 15;
+            bot.nextEmoteTime -= dt;
+            if (bot.nextEmoteTime <= 0 && !activeEmotes.has(bot)) {
+                bot.nextEmoteTime = 8 + Math.random() * 20;
+                const botEmotes = ['joy', 'laugh', 'clap', 'angry'];
+                const emote = botEmotes[Math.floor(Math.random() * botEmotes.length)];
+                if (emote !== 'laugh') {
+                    triggerEmote(bot, emote);
+                }
+            }
+            
+            if (bot.reactionTimer > 0) bot.reactionTimer -= dt;
+            
+            let threatBullet = null;
+            let threatTime = Infinity;
+            
+            for (const b of bullets) {
+                const toBotX = bot.x - b.x;
+                const toBotY = bot.y - b.y;
+                const distToBot = Math.hypot(toBotX, toBotY);
+                
+                if (distToBot > cfg.visionRange) continue;
+                
+                const bulletSpeed = Math.hypot(b.vx, b.vy);
+                if (bulletSpeed < 0.01) continue;
+                
+                const t = (toBotX * b.vx + toBotY * b.vy) / (bulletSpeed * bulletSpeed);
+                
+                if (t < 0 || t > cfg.visionTime) continue;
+                
+                const futureX = b.x + b.vx * t;
+                const futureY = b.y + b.vy * t;
+                const cross = Math.hypot(bot.x - futureX, bot.y - futureY);
+                
+                if (cross < bot.radius * cfg.threatRadiusMul && t < threatTime) {
+                    threatBullet = b;
+                    threatTime = t;
+                }
+            }
+            
+            let targetDirX = 0, targetDirY = 0;
+            let isEvading = false;
+            
+            if (threatBullet) {
+                if (cfg.reactionDelay > 0 && bot.reactionTimer > 0) {
+                    const inertiaSmoothing = 3;
+                    bot.vx += (0 - bot.vx) * Math.min(1, dt * inertiaSmoothing);
+                    bot.vy += (0 - bot.vy) * Math.min(1, dt * inertiaSmoothing);
+                    
+                    bot.x += bot.vx * 60 * dt;
+                    bot.y += bot.vy * 60 * dt;
+                    clampToArena(bot);
+                    
+                    bot.trail.push({ x: bot.x, y: bot.y, life: 0.3 });
+                    if (bot.trail.length > 15) bot.trail.shift();
+                    bot.trail.forEach(t => t.life -= dt);
+                    return;
+                }
+                
+                if (cfg.reactionDelay > 0 && bot.reactionTimer <= 0 && !bot.wasReacting) {
+                    bot.reactionTimer = cfg.reactionDelay;
+                    bot.wasReacting = true;
+                }
+                
+                const bulletSpeed = Math.hypot(threatBullet.vx, threatBullet.vy);
+                const bvx = threatBullet.vx / bulletSpeed;
+                const bvy = threatBullet.vy / bulletSpeed;
+                
+                const perp1x = -bvy;
+                const perp1y = bvx;
+                const perp2x = bvy;
+                const perp2y = -bvx;
+                
+                const futureX = threatBullet.x + threatBullet.vx * threatTime;
+                const futureY = threatBullet.y + threatBullet.vy * threatTime;
+                
+                const test1X = bot.x + perp1x * 50;
+                const test1Y = bot.y + perp1y * 50;
+                const test2X = bot.x + perp2x * 50;
+                const test2Y = bot.y + perp2y * 50;
+                
+                const dist1 = Math.hypot(test1X - futureX, test1Y - futureY);
+                const dist2 = Math.hypot(test2X - futureX, test2Y - futureY);
+                
+                let chosenPerpX, chosenPerpY;
+                if (dist1 > dist2) {
+                    chosenPerpX = perp1x;
+                    chosenPerpY = perp1y;
+                } else {
+                    chosenPerpX = perp2x;
+                    chosenPerpY = perp2y;
+                }
+                
+                const testX = bot.x + chosenPerpX * 70;
+                const testY = bot.y + chosenPerpY * 70;
+                const dxC = testX - W / 2;
+                const dyC = testY - H / 2;
+                const arenaR = getArenaRadius() - bot.radius - 10;
+                if (Math.hypot(dxC, dyC) > arenaR) {
+                    chosenPerpX = -chosenPerpX;
+                    chosenPerpY = -chosenPerpY;
+                }
+                
+                targetDirX = chosenPerpX;
+                targetDirY = chosenPerpY;
+                isEvading = true;
+            } else {
+                bot.wasReacting = false;
+                bot.reactionTimer = 0;
+                
+                let nearestHeart = null;
+                let nearestHeartDist = Infinity;
+                for (const heart of heartItems) {
+                    const d = Math.hypot(heart.x - bot.x, heart.y - bot.y);
+                    if (d < nearestHeartDist) {
+                        nearestHeartDist = d;
+                        nearestHeart = heart;
+                    }
+                }
+                
+                if (nearestHeart && nearestHeartDist < 300) {
+                    const dx = nearestHeart.x - bot.x;
+                    const dy = nearestHeart.y - bot.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 3) {
+                        targetDirX = dx / dist;
+                        targetDirY = dy / dist;
+                    }
+                } else {
+                    const t = gameTime * 0.5 + bot.seed;
+                    const orbitR = 60 + Math.sin(t * 0.6 + bot.seed) * 40;
+                    const orbitAngle = t * 0.8 + bot.seed;
+                    
+                    const desiredX = W / 2 + Math.cos(orbitAngle) * orbitR;
+                    const desiredY = H / 2 + Math.sin(orbitAngle) * orbitR;
+                    
+                    const dx = desiredX - bot.x;
+                    const dy = desiredY - bot.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 3) {
+                        targetDirX = dx / dist;
+                        targetDirY = dy / dist;
+                    }
+                }
+            }
+            
+            const targetVx = targetDirX * bot.speed;
+            const targetVy = targetDirY * bot.speed;
+            
+            const smoothing = isEvading ? cfg.evadeSmoothing : cfg.smoothing;
+            bot.vx += (targetVx - bot.vx) * Math.min(1, dt * smoothing);
+            bot.vy += (targetVy - bot.vy) * Math.min(1, dt * smoothing);
+            
+            bot.x += bot.vx * 60 * dt;
+            bot.y += bot.vy * 60 * dt;
+            
+            clampToArena(bot);
+            
+            bot.trail.push({ x: bot.x, y: bot.y, life: 0.3 });
+            if (bot.trail.length > 15) bot.trail.shift();
+            bot.trail.forEach(t => t.life -= dt);
+        }
+
+        function update(dt) {
+            if (!running || paused) return;
+
+            gameTime += dt;
+            timeEl.textContent = gameTime.toFixed(1);
+
+            if (gameTime >= nextLevelTime) {
+                nextLevelTime += LEVEL_TIME;
+                levelUp();
+            }
+
+            if (player.invulnerable > 0) player.invulnerable -= dt;
+
+            heartSpawnTimer -= dt;
+            heartTimerValEl.textContent = Math.ceil(heartSpawnTimer);
+            if (heartSpawnTimer <= 0) {
+                heartSpawnTimer = HEART_SPAWN_INTERVAL;
+                spawnHeart();
+            }
+
+            for (let i = heartItems.length - 1; i >= 0; i--) {
+                const heart = heartItems[i];
+                heart.life -= dt;
+                heart.spawnTime += dt;
+                heart.bobPhase += dt * 3;
+                
+                if (heart.life <= 0) {
+                    for (let j = 0; j < 8; j++) {
+                        const a = Math.random() * Math.PI * 2;
+                        const s = 30 + Math.random() * 40;
+                        heartParticles.push({
+                            x: heart.x, y: heart.y,
+                            vx: Math.cos(a) * s,
+                            vy: Math.sin(a) * s,
+                            life: 0.5, maxLife: 0.5,
+                            color: '#ff66aa',
+                            size: 3 + Math.random() * 2
+                        });
+                    }
+                    heartItems.splice(i, 1);
+                    continue;
+                }
+                
+                if (player.alive) {
+                    const dx = player.x - heart.x;
+                    const dy = player.y - heart.y;
+                    if (Math.hypot(dx, dy) < heart.radius + player.radius) {
+                        collectHeart(heart, player);
+                        heartItems.splice(i, 1);
+                        continue;
+                    }
+                }
+                
+                if (gameMode === 'bots') {
+                    let collected = false;
+                    for (const bot of bots) {
+                        if (!bot.alive) continue;
+                        const dx = bot.x - heart.x;
+                        const dy = bot.y - heart.y;
+                        if (Math.hypot(dx, dy) < heart.radius + bot.radius) {
+                            if (bot.hp < 2) {
+                                bot.hp++;
+                                addKillMessage(`💗 ${bot.name} +1 HP`, bot.color);
+                            }
+                            for (let j = 0; j < 15; j++) {
+                                const a = Math.random() * Math.PI * 2;
+                                const s = 40 + Math.random() * 60;
+                                heartParticles.push({
+                                    x: bot.x, y: bot.y,
+                                    vx: Math.cos(a) * s,
+                                    vy: Math.sin(a) * s,
+                                    life: 0.6, maxLife: 0.6,
+                                    color: '#ff66aa',
+                                    size: 3 + Math.random() * 3
+                                });
+                            }
+                            heartItems.splice(i, 1);
+                            collected = true;
+                            break;
+                        }
+                    }
+                    if (collected) continue;
+                }
+            }
+
+            let mx = 0, my = 0;
+            if (controlMode === 'pc') {
+                if (keys['w'] || keys['arrowup'] || keys['ц']) my -= 1;
+                if (keys['s'] || keys['arrowdown'] || keys['ы']) my += 1;
+                if (keys['a'] || keys['arrowleft'] || keys['ф']) mx -= 1;
+                if (keys['d'] || keys['arrowright'] || keys['в']) mx += 1;
+                if (mx !== 0 || my !== 0) {
+                    const len = Math.hypot(mx, my);
+                    mx /= len; my /= len;
+                }
+            } else {
+                mx = joystick.dx;
+                my = joystick.dy;
+                const len = Math.hypot(mx, my);
+                if (len > 1) { mx /= len; my /= len; }
+            }
+
+            if (player.alive) {
+                player.vx = mx * player.speed;
+                player.vy = my * player.speed;
+                
+                player.x += mx * player.speed * 60 * dt;
+                player.y += my * player.speed * 60 * dt;
+                
+                clampToArena(player);
+                
+                player.trail.push({ x: player.x, y: player.y, life: 0.3 });
+                if (player.trail.length > 15) player.trail.shift();
+                player.trail.forEach(t => t.life -= dt);
+            }
+
+            if (gameMode === 'bots') {
+                bots.forEach(b => updateBot(b, dt));
+            }
+
+            updateEmotes(dt);
+
+            cannons.forEach(c => { if (c.flash > 0) c.flash -= dt; });
+
+            spawnTimer += dt;
+            const interval = getSpawnInterval();
+            if (spawnTimer >= interval) {
+                spawnTimer = 0;
+                spawnBullets();
+                if (level >= 4 && Math.random() < 0.25) spawnBullets();
+                if (level >= 6 && Math.random() < 0.25) spawnBullets();
+            }
+
+            const arenaR = getArenaRadius();
+            const cx = W / 2;
+            const cy = H / 2;
+            
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.x += b.vx * 60 * dt;
+                b.y += b.vy * 60 * dt;
+                b.life -= dt;
+                
+                const dxC = b.x - cx;
+                const dyC = b.y - cy;
+                const distC = Math.hypot(dxC, dyC);
+                const isInside = distC < arenaR - b.radius;
+                
+                if (!b.insideArena) {
+                    if (isInside) {
+                        b.insideArena = true;
+                    }
+                    if (distC > arenaR + 80) {
+                        bullets.splice(i, 1);
+                        continue;
+                    }
+                } else {
+                    if (distC > arenaR - b.radius) {
+                        const scale = (arenaR - b.radius) / distC;
+                        b.x = cx + dxC * scale;
+                        b.y = cy + dyC * scale;
+                        
+                        createBulletBreak(b.x, b.y);
+                        bullets.splice(i, 1);
+                        continue;
+                    }
+                }
+                
+                if (player.alive && player.invulnerable <= 0) {
+                    const dx = b.x - player.x;
+                    const dy = b.y - player.y;
+                    if (Math.hypot(dx, dy) < b.radius + player.radius) {
+                        bullets.splice(i, 1);
+                        takeDamage();
+                        if (!running) return;
+                        continue;
+                    }
+                }
+                
+                if (gameMode === 'bots') {
+                    let hit = false;
+                    for (const bot of bots) {
+                        if (!bot.alive || bot.invulnerable > 0) continue;
+                        const dx = b.x - bot.x;
+                        const dy = b.y - bot.y;
+                        if (Math.hypot(dx, dy) < b.radius + bot.radius) {
+                            bullets.splice(i, 1);
+                            damageBot(bot);
+                            hit = true;
+                            if (!running) return;
+                            break;
+                        }
+                    }
+                    if (hit) continue;
+                }
+                
+                if (b.life <= 0) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * 60 * dt;
+                p.y += p.vy * 60 * dt;
+                p.vx *= 0.95;
+                p.vy *= 0.95;
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = boundaryParticles.length - 1; i >= 0; i--) {
+                const p = boundaryParticles[i];
+                p.x += p.vx * 60 * dt;
+                p.y += p.vy * 60 * dt;
+                p.vx *= 0.92;
+                p.vy *= 0.92;
+                p.life -= dt;
+                if (p.life <= 0) boundaryParticles.splice(i, 1);
+            }
+
+            for (let i = heartParticles.length - 1; i >= 0; i--) {
+                const p = heartParticles[i];
+                p.x += p.vx * 60 * dt;
+                p.y += p.vy * 60 * dt;
+                p.vx *= 0.94;
+                p.vy *= 0.94;
+                p.life -= dt;
+                if (p.life <= 0) heartParticles.splice(i, 1);
+            }
+        }
+
+        function drawEntity(entity) {
+            if (!entity.alive) return;
+            const blink = entity.invulnerable > 0 && Math.floor(entity.invulnerable * 10) % 2 === 0;
+            if (blink) return;
+            
+            const grad = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, entity.radius * 2.5);
+            grad.addColorStop(0, entity.color + '66');
+            grad.addColorStop(1, entity.color + '00');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(entity.x, entity.y, entity.radius * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.globalAlpha = 0.75;
+            ctx.fillStyle = entity.color;
+            ctx.beginPath();
+            ctx.arc(entity.x, entity.y, entity.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            
+            ctx.strokeStyle = entity.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(entity.x, entity.y, entity.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.85)';
+            ctx.beginPath();
+            ctx.arc(entity.x - 4, entity.y - 3, 3, 0, Math.PI * 2);
+            ctx.arc(entity.x + 4, entity.y - 3, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawHeart(heart) {
+            const bob = Math.sin(heart.bobPhase) * 4;
+            const pulse = 1 + Math.sin(heart.bobPhase * 2) * 0.1;
+            
+            let alpha = 1;
+            if (heart.life < 2) {
+                alpha = 0.4 + Math.abs(Math.sin(heart.life * 8)) * 0.6;
+            }
+            
+            const x = heart.x;
+            const y = heart.y + bob;
+            const r = heart.radius * pulse;
+            
+            const glowGrad = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
+            glowGrad.addColorStop(0, 'rgba(255, 100, 170, 0.8)');
+            glowGrad.addColorStop(0.5, 'rgba(255, 100, 170, 0.3)');
+            glowGrad.addColorStop(1, 'rgba(255, 100, 170, 0)');
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(x, y, r * 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.font = `${r * 2.4}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#ff66aa';
+            ctx.shadowBlur = 20;
+            ctx.fillText('💗', x, y);
+            ctx.shadowBlur = 0;
+            
+            ctx.globalAlpha = 1;
+        }
+
+        function draw() {
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.strokeStyle = 'rgba(0, 150, 255, 0.08)';
+            ctx.lineWidth = 1;
+            const gridSize = 50;
+            for (let x = 0; x < W; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+            }
+            for (let y = 0; y < H; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+            }
+
+            const arenaR = getArenaRadius();
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.rect(0, 0, W, H);
+            ctx.arc(W / 2, H / 2, arenaR, 0, Math.PI * 2, true);
+            ctx.fill();
+            
+            const glowGrad = ctx.createRadialGradient(W / 2, H / 2, arenaR - 25, W / 2, H / 2, arenaR + 25);
+            glowGrad.addColorStop(0, 'rgba(0, 200, 255, 0)');
+            glowGrad.addColorStop(0.4, 'rgba(0, 200, 255, 0.25)');
+            glowGrad.addColorStop(0.6, 'rgba(0, 200, 255, 0.35)');
+            glowGrad.addColorStop(1, 'rgba(0, 200, 255, 0)');
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(W / 2, H / 2, arenaR + 25, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(0, 220, 255, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(W / 2, H / 2, arenaR, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.strokeStyle = 'rgba(0, 180, 255, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(W / 2, H / 2, arenaR + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.strokeStyle = 'rgba(0, 150, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([10, 15]);
+            ctx.beginPath();
+            ctx.arc(W / 2, H / 2, arenaR - 30, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            cannons.forEach(c => {
+                const angle = getCannonDisplayAngle(c);
+                ctx.save();
+                ctx.translate(c.x, c.y);
+                ctx.rotate(angle);
+                if (c.flash > 0) {
+                    ctx.fillStyle = `rgba(255, 200, 0, ${c.flash * 3})`;
+                    ctx.beginPath(); ctx.arc(0, 0, 50, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.fillStyle = '#2a2a3a';
+                ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = c.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.fillStyle = c.color;
+                ctx.fillRect(0, -6, 28, 12);
+                ctx.fillStyle = '#ff6666';
+                ctx.fillRect(24, -5, 6, 10);
+                ctx.restore();
+            });
+
+            if (player.alive) {
+                player.trail.forEach((t, i) => {
+                    if (t.life > 0) {
+                        ctx.fillStyle = `rgba(0, 255, 136, ${t.life / 0.3 * 0.3})`;
+                        ctx.beginPath();
+                        ctx.arc(t.x, t.y, player.radius * (i / player.trail.length), 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            }
+            bots.forEach(bot => {
+                if (!bot.alive) return;
+                bot.trail.forEach((t, i) => {
+                    if (t.life > 0) {
+                        ctx.globalAlpha = t.life / 0.3 * 0.3;
+                        ctx.fillStyle = bot.color;
+                        ctx.beginPath();
+                        ctx.arc(t.x, t.y, bot.radius * (i / bot.trail.length), 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+                ctx.globalAlpha = 1;
+            });
+
+            particles.forEach(p => {
+                const alpha = p.life / p.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            boundaryParticles.forEach(p => {
+                const alpha = p.life / p.maxLife;
+                ctx.globalAlpha = alpha;
+                
+                const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 4);
+                grad.addColorStop(0, p.color);
+                grad.addColorStop(1, 'rgba(0, 200, 255, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * alpha * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            heartParticles.forEach(p => {
+                const alpha = p.life / p.maxLife;
+                ctx.globalAlpha = alpha;
+                
+                const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
+                grad.addColorStop(0, p.color);
+                grad.addColorStop(1, 'rgba(255, 100, 170, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+
+            heartItems.forEach(h => drawHeart(h));
+
+            bullets.forEach(b => {
+                const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * 3);
+                grad.addColorStop(0, 'rgba(255, 200, 0, 0.8)');
+                grad.addColorStop(1, 'rgba(255, 100, 0, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = b.color;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffffaa';
+                ctx.beginPath(); ctx.arc(b.x - 1, b.y - 1, b.radius * 0.5, 0, Math.PI * 2); ctx.fill();
+            });
+
+            bots.forEach(bot => {
+                if (bot.alive) drawEntity(bot);
+            });
+
+            if (player.alive) drawEntity(player);
+
+            drawEmotes();
+        }
+
+        function initBots() {
+            bots.length = 0;
+            for (let i = 0; i < BOT_COUNT; i++) {
+                const angle = (i / BOT_COUNT) * Math.PI * 2 + Math.PI / 4;
+                const offset = 55;
+                bots.push({
+                    x: W / 2 + Math.cos(angle) * offset,
+                    y: H / 2 + Math.sin(angle) * offset,
+                    radius: 15,
+                    speed: 5.5,
+                    color: BOT_COLORS[i],
+                    trail: [],
+                    invulnerable: 0,
+                    isPlayer: false,
+                    alive: true,
+                    hp: 2,
+                    vx: 0, vy: 0,
+                    name: BOT_NAMES[i],
+                    seed: Math.random() * 100,
+                    reactionTimer: 0,
+                    wasReacting: false,
+                    nextEmoteTime: 5 + Math.random() * 15
+                });
+            }
+        }
+
+        function showScreen(el) {
+            [mainMenuEl, modeMenuEl, deviceMenuEl, helpMenuEl, settingsMenuEl, botsMenuEl].forEach(m => m.classList.add('hidden'));
+            if (el) el.classList.remove('hidden');
+        }
+
+        function openModeMenu() { initAudio(); soundClick(); showScreen(modeMenuEl); }
+        function openHelpMenu() { initAudio(); soundClick(); showScreen(helpMenuEl); }
+        function openSettingsMenu() { 
+            initAudio(); 
+            soundClick(); 
+            updateSettingsUI(); 
+            showScreen(settingsMenuEl); 
+        }
+        function openBotsMenu() { soundClick(); updateBotsUI(); showScreen(botsMenuEl); }
+        function openDeviceMenu() { soundClick(); showScreen(deviceMenuEl); }
+        function backToMain() { soundClick(); showScreen(mainMenuEl); }
+        function backToMode() { soundClick(); showScreen(modeMenuEl); }
+        function hideAllMenus() { [mainMenuEl, modeMenuEl, deviceMenuEl, helpMenuEl, settingsMenuEl, botsMenuEl].forEach(m => m.classList.add('hidden')); }
+
+        function updateSettingsUI() {
+            document.getElementById('btnResStandard').classList.toggle('selected', resolutionMode === 'standard');
+            document.getElementById('btnRes4x3').classList.toggle('selected', resolutionMode === '4:3');
+            document.getElementById('btnRes16x10').classList.toggle('selected', resolutionMode === '16:10');
+            currentKeyDisplayEl.textContent = emoteKeyDisplay;
+            
+            // Обновляем слайдеры
+            volumeMusicEl.value = Math.round(musicVolume * 100);
+            volumeSfxEl.value = Math.round(sfxVolume * 100);
+            volumeMasterEl.value = Math.round(masterVolume * 100);
+            updateVolumeUI();
+        }
+
+        function updateVolumeUI() {
+            volumeMusicValEl.textContent = Math.round(musicVolume * 100) + '%';
+            volumeSfxValEl.textContent = Math.round(sfxVolume * 100) + '%';
+            volumeMasterValEl.textContent = Math.round(masterVolume * 100) + '%';
+            
+            volumeMusicEl.style.setProperty('--val', Math.round(musicVolume * 100) + '%');
+            volumeSfxEl.style.setProperty('--val', Math.round(sfxVolume * 100) + '%');
+            volumeMasterEl.style.setProperty('--val', Math.round(masterVolume * 100) + '%');
+        }
+
+        // Обработчики слайдеров
+        volumeMusicEl.addEventListener('input', (e) => {
+            musicVolume = e.target.value / 100;
+            localStorage.setItem('volumeMusic', musicVolume);
+            updateMusicVolume();
+            updateVolumeUI();
+        });
+        
+        volumeSfxEl.addEventListener('input', (e) => {
+            sfxVolume = e.target.value / 100;
+            localStorage.setItem('volumeSfx', sfxVolume);
+            updateVolumeUI();
+        });
+        
+        volumeMasterEl.addEventListener('input', (e) => {
+            masterVolume = e.target.value / 100;
+            localStorage.setItem('volumeMaster', masterVolume);
+            updateMusicVolume();
+            updateVolumeUI();
+        });
+
+        function setResolution(mode) {
+            resolutionMode = mode;
+            localStorage.setItem('resolutionMode', mode);
+            applyResolution();
+            updateSettingsUI();
+            soundClick();
+        }
+
+        function setBotDifficulty(diff) {
+            botDifficulty = diff;
+            localStorage.setItem('botDifficulty', diff);
+            updateBotsUI();
+            soundClick();
+        }
+
+        function startKeyBind() {
+            waitingForKey = true;
+            keyBindDisplayEl.textContent = '...';
+            keyBindModalEl.classList.add('show');
+            initAudio();
+            soundClick();
+        }
+
+        function cancelKeyBind() {
+            waitingForKey = false;
+            keyBindModalEl.classList.remove('show');
+            soundClick();
+        }
+
+        document.getElementById('btnKeyBind').addEventListener('click', startKeyBind);
+        document.getElementById('btnCancelKeyBind').addEventListener('click', cancelKeyBind);
+
+        function resetGame() {
+            player.x = W / 2;
+            player.y = H / 2;
+            player.trail = [];
+            player.invulnerable = 0;
+            player.alive = true;
+            player.vx = 0;
+            player.vy = 0;
+            bullets = [];
+            particles = [];
+            boundaryParticles = [];
+            heartParticles = [];
+            heartItems = [];
+            heartSpawnTimer = HEART_SPAWN_INTERVAL;
+            heartTimerEl.style.display = 'block';
+            heartTimerValEl.textContent = HEART_SPAWN_INTERVAL;
+            activeEmotes.clear();
+            gameTime = 0;
+            spawnTimer = 0;
+            lives = maxLives;
+            level = 1;
+            nextLevelTime = LEVEL_TIME;
+            cannons.forEach(c => c.flash = 0);
+            updateHearts();
+            levelEl.textContent = '1';
+            gameOverEl.style.display = 'none';
+            timeEl.textContent = '0';
+            paused = false;
+            pauseScreenEl.classList.remove('show');
+            killFeedEl.innerHTML = '';
+            
+            if (gameMode === 'bots') {
+                initBots();
+                aliveInfoEl.style.display = 'block';
+                updateAliveCount();
+            } else {
+                bots.length = 0;
+                aliveInfoEl.style.display = 'none';
+            }
+            
+            lastTime = performance.now();
+        }
+
+        function startGame() {
+            initAudio();
+            soundClick();
+            resetGame();
+            hideAllMenus();
+            uiEl.style.display = 'flex';
+            pauseBtnEl.style.display = 'flex';
+            emoteHintEl.style.display = 'flex';
+
+            // ЗАПУСКАЕМ МУЗЫКУ
+            startMusic();
+
+            if (controlMode === 'mobile') {
+                joystickEl.style.display = 'block';
+                joystickHintEl.style.display = 'block';
+                emoteBtnEl.style.display = 'flex';
+            } else {
+                joystickEl.style.display = 'none';
+                joystickHintEl.style.display = 'none';
+                emoteBtnEl.style.display = 'none';
+                emoteMenuEl.classList.remove('show');
+            }
+
+            running = true;
+        }
+
+        function restartGame() {
+            initAudio();
+            soundClick();
+            resetGame();
+            uiEl.style.display = 'flex';
+            pauseBtnEl.style.display = 'flex';
+            emoteHintEl.style.display = 'flex';
+            running = true;
+        }
+
+        function endGame(result) {
+            running = false;
+            finalTimeEl.textContent = gameTime.toFixed(1);
+            
+            if (result === 'win') {
+                gameOverTitle.textContent = '🏆 ПОБЕДА!';
+                gameOverTitle.classList.add('win');
+                gameOverText.innerHTML = `Ты выжил! Время: ${gameTime.toFixed(1)}с`;
+                soundVictory();
+            } else {
+                gameOverTitle.textContent = 'ИГРА ОКОНЧЕНА';
+                gameOverTitle.classList.remove('win');
+                
+                if (gameMode === 'bots') {
+                    const aliveBots = bots.filter(b => b.alive);
+                    if (aliveBots.length === 1) {
+                        gameOverText.innerHTML = `Победил бот <b style="color:${aliveBots[0].color}">${aliveBots[0].name}</b>`;
+                    } else {
+                        gameOverText.innerHTML = `Ты погиб. Время: ${gameTime.toFixed(1)}с`;
+                    }
+                } else {
+                    gameOverText.innerHTML = `Ты продержался: ${gameTime.toFixed(1)} секунд`;
+                }
+                soundGameOver();
+            }
+            
+            if (gameMode === 'classic') {
+                if (gameTime > bestTime) {
+                    bestTime = gameTime;
+                    localStorage.setItem('bestTime', bestTime);
+                    updateBestDisplay();
+                    newRecordEl.style.display = 'block';
+                } else {
+                    newRecordEl.style.display = 'none';
+                }
+            } else {
+                newRecordEl.style.display = 'none';
+            }
+            
+            setTimeout(() => {
+                gameOverEl.style.display = 'block';
+            }, 500);
+        }
+
+        function exitToMenu() {
+            soundClick();
+            running = false;
+            paused = false;
+            gameOverEl.style.display = 'none';
+            pauseScreenEl.classList.remove('show');
+            uiEl.style.display = 'none';
+            pauseBtnEl.style.display = 'none';
+            joystickEl.style.display = 'none';
+            joystickHintEl.style.display = 'none';
+            emoteHintEl.style.display = 'none';
+            emoteBtnEl.style.display = 'none';
+            emoteMenuEl.classList.remove('show');
+            heartTimerEl.style.display = 'none';
+            showScreen(mainMenuEl);
+            // Музыка продолжает играть в меню!
+        }
+
+        function pauseGame() {
+            if (!running) return;
+            paused = true;
+            pauseScreenEl.classList.add('show');
+        }
+
+        function resumeGame() {
+            soundClick();
+            paused = false;
+            pauseScreenEl.classList.remove('show');
+            lastTime = performance.now();
+        }
+
+        function restartFromPause() {
+            soundClick();
+            resetGame();
+            running = true;
+        }
+
+        document.getElementById('btnPlay').addEventListener('click', openModeMenu);
+        document.getElementById('btnHelp').addEventListener('click', openHelpMenu);
+        document.getElementById('btnSettings').addEventListener('click', openSettingsMenu);
+        document.getElementById('btnBackFromMode').addEventListener('click', backToMain);
+        document.getElementById('btnBackFromDevice').addEventListener('click', () => {
+            if (gameMode === 'bots') {
+                showScreen(botsMenuEl);
+                updateBotsUI();
+            } else {
+                showScreen(modeMenuEl);
+            }
+        });
+        document.getElementById('btnBackFromHelp').addEventListener('click', backToMain);
+        document.getElementById('btnBackFromSettings').addEventListener('click', backToMain);
+        document.getElementById('btnBackFromBots').addEventListener('click', backToMode);
+        
+        document.getElementById('btnResStandard').addEventListener('click', () => setResolution('standard'));
+        document.getElementById('btnRes4x3').addEventListener('click', () => setResolution('4:3'));
+        document.getElementById('btnRes16x10').addEventListener('click', () => setResolution('16:10'));
+        
+        document.getElementById('btnBotsEasy').addEventListener('click', () => {
+            setBotDifficulty('easy');
+            setTimeout(() => showScreen(deviceMenuEl), 150);
+        });
+        document.getElementById('btnBotsMedium').addEventListener('click', () => {
+            setBotDifficulty('medium');
+            setTimeout(() => showScreen(deviceMenuEl), 150);
+        });
+        document.getElementById('btnBotsHard').addEventListener('click', () => {
+            setBotDifficulty('hard');
+            setTimeout(() => showScreen(deviceMenuEl), 150);
+        });
+        
+        document.getElementById('btnModeClassic').addEventListener('click', () => {
+            gameMode = 'classic';
+            soundClick();
+            showScreen(deviceMenuEl);
+        });
+        document.getElementById('btnModeBots').addEventListener('click', () => {
+            gameMode = 'bots';
+            soundClick();
+            showScreen(botsMenuEl);
+            updateBotsUI();
+        });
+        document.getElementById('btnPC').addEventListener('click', () => {
+            controlMode = 'pc';
+            startGame();
+        });
+        document.getElementById('btnMobile').addEventListener('click', () => {
+            controlMode = 'mobile';
+            startGame();
+        });
+        document.getElementById('btnRestartGame').addEventListener('click', restartGame);
+        document.getElementById('btnGameOverMenu').addEventListener('click', exitToMenu);
+        document.getElementById('btnResume').addEventListener('click', resumeGame);
+        document.getElementById('btnRestartPause').addEventListener('click', restartFromPause);
+        document.getElementById('btnExitMenu').addEventListener('click', exitToMenu);
+        pauseBtnEl.addEventListener('click', pauseGame);
+
+        // ПЕРВЫЙ КЛИК ЗАПУСКАЕТ МУЗЫКУ (обход автоплея)
+        document.addEventListener('click', () => {
+            initAudio();
+            if (!musicStarted && musicEnabled) {
+                startMusic();
+            }
+        }, { once: false });
+
+        function loop(now) {
+            const dt = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
+            update(dt);
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        applyResolution();
+        initCannons();
+        player.x = W / 2;
+        player.y = H / 2;
+        updateHearts();
+        requestAnimationFrame(loop);
+        
+        // Пытаемся запустить музыку сразу (если браузер позволит)
+        setTimeout(() => {
+            if (musicEnabled) startMusic();
+        }, 100);
+    </script>
+</body>
+</html>
