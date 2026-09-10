@@ -1,10 +1,10 @@
-const CACHE_NAME = 'defba-cache-v1';
+const CACHE_NAME = 'defba-cache-v8';
 // Список файлов для кэширования (все, что нужно для работы игры)
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './music.mp3',
   './manifest.json',
+  './music.mp3',
   './icons/icon-192.png',
   './icons/icon-512.png'
   // Если у тебя есть другие картинки, добавь их сюда
