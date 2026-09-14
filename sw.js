@@ -1,5 +1,4 @@
-const CACHE_NAME = 'defba-cache-v8';
-// Список файлов для кэширования (все, что нужно для работы игры)
+const CACHE_NAME = 'defba-cache-v10';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -7,10 +6,8 @@ const ASSETS_TO_CACHE = [
   './music.mp3',
   './icons/icon-192.png',
   './icons/icon-512.png'
-  // Если у тебя есть другие картинки, добавь их сюда
 ];
 
-// Установка: кэшируем все файлы
 self.addEventListener('install', (event) => {
   console.log('[SW] Установка Service Worker...');
   event.waitUntil(
@@ -19,14 +16,10 @@ self.addEventListener('install', (event) => {
         console.log('[SW] Кэширование файлов');
         return cache.addAll(ASSETS_TO_CACHE);
       })
-      .then(() => {
-        // Активируем нового SW сразу, не дожидаясь закрытия вкладок
-        return self.skipWaiting();
-      })
+      .then(() => self.skipWaiting())
   );
 });
 
-// Активация: удаляем старые кэши
 self.addEventListener('activate', (event) => {
   console.log('[SW] Активация Service Worker...');
   event.waitUntil(
@@ -39,23 +32,15 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => {
-      // Берём контроль над всеми открытыми страницами
-      return self.clients.claim();
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// Перехват запросов: стратегия Cache First (сначала кэш)
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
-        // Если есть в кэше — возвращаем его
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // Если нет — идём в интернет
+        if (cachedResponse) return cachedResponse;
         return fetch(event.request);
       })
   );
