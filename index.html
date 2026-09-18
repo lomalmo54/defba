@@ -2920,13 +2920,13 @@
         let replayPlayIndex = 0;
         let replayPlayLastTime = 0;
 
-               function recordReplayFrame(t) {
+                     function recordReplayFrame(t) {
             if (!player) return;
             const frame = {
                 t: t,
                 player: { x: player.x, y: player.y, alive: player.alive, color: getCurrentSkinColor() },
                 bots: bots.map(b => ({ x: b.x, y: b.y, alive: b.alive, color: b.color, radius: b.radius })),
-                bullets: bullets
+                bullets: (player.alive ? bullets : [])
                     .filter(b => b && b.radius > 0 && isFinite(b.x) && isFinite(b.y))
                     .map(b => ({
                         x: b.x, y: b.y,
@@ -4805,6 +4805,53 @@
                 particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.8, maxLife: 0.8, color: Math.random() > 0.5 ? color : '#ffaa00', size: 3 + Math.random() * 4 });
             }
         }
+                // ✅ БОЛЬШОЙ ВЗРЫВ (для смерти игрока и босса)
+        function createBigExplosion(x, y, color = '#ff4444') {
+            // Основной взрыв (60 частиц)
+            for (let i = 0; i < 60; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const s = 3 + Math.random() * 12;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(a) * s,
+                    vy: Math.sin(a) * s,
+                    life: 1.2 + Math.random() * 0.6,
+                    maxLife: 1.2 + Math.random() * 0.6,
+                    color: Math.random() > 0.5 ? color : (Math.random() > 0.5 ? '#ffaa00' : '#ffffff'),
+                    size: 4 + Math.random() * 6
+                });
+            }
+            
+            // Ударная волна (кольцо)
+            boundaryParticles.push({
+                x, y,
+                vx: 0, vy: 0,
+                life: 0.8, maxLife: 0.8,
+                color: color,
+                size: 8,
+                isShockwave: true,
+                radius: 20,
+                maxRadius: 200
+            });
+            
+            // Вторичные частицы (разлёт)
+            for (let i = 0; i < 20; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const s = 1 + Math.random() * 4;
+                setTimeout(() => {
+                    particles.push({
+                        x: x + (Math.random() - 0.5) * 40,
+                        y: y + (Math.random() - 0.5) * 40,
+                        vx: Math.cos(a) * s,
+                        vy: Math.sin(a) * s,
+                        life: 0.8,
+                        maxLife: 0.8,
+                        color: '#ffcc00',
+                        size: 3 + Math.random() * 4
+                    });
+                }, 100 + Math.random() * 300);
+            }
+        }
 
         function createBulletBreak(x, y) {
             const bc = getCurrentBullet();
@@ -4861,7 +4908,7 @@
             }, 2000);
         }
 
-        function takeDamage() {
+              function takeDamage() {
             if (adminGodMode) return;
             if (player.invulnerable > 0 || !player.alive) return;
             if (playerShield > 0) return;
@@ -4872,13 +4919,30 @@
             damageFlashEl.classList.remove('show');
             void damageFlashEl.offsetWidth;
             damageFlashEl.classList.add('show');
+            
             if (lives <= 0) {
                 player.alive = false;
-                createExplosion(player.x, player.y, player.color);
+                                
+                // ✅ Убираем пули при смерти — чтобы не висели в реплее
+                bullets = [];
+                playerBullets = [];
+                
+                // ✅ SLOW-MOTION при смерти игрока
+                slowMotionTimer = 1.5;
+                
+                // ✅ БОЛЬШОЙ ВЗРЫВ на месте смерти
+                createBigExplosion(player.x, player.y, player.color);
+                
+                // ✅ Тряска экрана
+                document.body.classList.add('bigShake');
+                setTimeout(() => document.body.classList.remove('bigShake'), 650);
+                
                 addKillMessage('💀 ТЫ ПОГИБ', '#ff4444');
                 updateAliveCount();
                 running = false;
-                endGame('lose');
+                
+                // ✅ Небольшая задержка перед экраном смерти (для slow-mo)
+                setTimeout(() => endGame('lose'), 800);
                 return;
             }
             player.invulnerable = 1.5;
@@ -5404,7 +5468,17 @@
             }
 
             for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx * 60 * dt; p.y += p.vy * 60 * dt; p.vx *= 0.95; p.vy *= 0.95; p.life -= dt; if (p.life <= 0) particles.splice(i, 1); }
-            for (let i = boundaryParticles.length - 1; i >= 0; i--) { const p = boundaryParticles[i]; p.x += p.vx * 60 * dt; p.y += p.vy * 60 * dt; p.vx *= 0.92; p.vy *= 0.92; p.life -= dt; if (p.life <= 0) boundaryParticles.splice(i, 1); }
+                        for (let i = boundaryParticles.length - 1; i >= 0; i--) { 
+                const p = boundaryParticles[i]; 
+                if (!p.isShockwave) {
+                    p.x += p.vx * 60 * dt; 
+                    p.y += p.vy * 60 * dt; 
+                    p.vx *= 0.92; 
+                    p.vy *= 0.92; 
+                }
+                p.life -= dt; 
+                if (p.life <= 0) boundaryParticles.splice(i, 1); 
+            }
             for (let i = heartParticles.length - 1; i >= 0; i--) { const p = heartParticles[i]; p.x += p.vx * 60 * dt; p.y += p.vy * 60 * dt; p.vx *= 0.94; p.vy *= 0.94; p.life -= dt; if (p.life <= 0) heartParticles.splice(i, 1); }
             for (let i = coinParticles.length - 1; i >= 0; i--) { const p = coinParticles[i]; p.x += p.vx * 60 * dt; p.y += p.vy * 60 * dt; p.vx *= 0.95; p.vy *= 0.95; p.vy += 100 * dt; p.life -= dt; if (p.life <= 0) coinParticles.splice(i, 1); }
         }
@@ -5412,7 +5486,7 @@
         // ============================================================
         // ПОБЕДА НАД БОССОМ
         // ============================================================
-        function bossDefeated() {
+              function bossDefeated() {
             const config = getBossById(boss.id);
             if (!config) return;
             
@@ -5434,20 +5508,78 @@
             saveBossProgress();
             soundBossVictory();
             
-            for (let i = 0; i < 100; i++) {
-                const a = Math.random() * Math.PI * 2;
-                const s = 100 + Math.random() * 250;
-                const colors = ['#ffcc00', '#00ff88', '#ff4466', '#00ddff', '#cc66ff', '#ffffff'];
-                particles.push({
-                    x: boss.x, y: boss.y,
-                    vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-                    life: 1.5, maxLife: 1.5,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    size: 4 + Math.random() * 6
-                });
+            // ✅ SLOW-MOTION при смерти босса (2 сек — подольше, эпично)
+            slowMotionTimer = 2.0;
+            
+            // ✅ ТРЯСКА ЭКРАНА
+            document.body.classList.add('bigShake');
+            setTimeout(() => document.body.classList.remove('bigShake'), 800);
+            
+            // ✅ БОЛЬШОЙ ВЗРЫВ В ЦЕНТРЕ БОССА
+            createBigExplosion(boss.x, boss.y, config.glow);
+            
+            // ✅ ЦЕПНАЯ РЕАКЦИЯ — 8 взрывов вокруг босса с задержкой
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const dist = 60 + Math.random() * 80;
+                const wx = boss.x + Math.cos(angle) * dist;
+                const wy = boss.y + Math.sin(angle) * dist;
+                setTimeout(() => {
+                    createBigExplosion(wx, wy, config.color);
+                    soundDamage();
+                }, 150 + i * 150);
             }
             
-            endGame('win');
+            // ✅ ФИНАЛЬНЫЙ МЕГА-ВЗРЫВ через 1.5 сек
+            setTimeout(() => {
+                // Огромный взрыв на месте босса
+                for (let i = 0; i < 200; i++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const s = 150 + Math.random() * 350;
+                    const colors = ['#ffcc00', '#00ff88', '#ff4466', '#00ddff', '#cc66ff', '#ffffff'];
+                    particles.push({
+                        x: boss.x, y: boss.y,
+                        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+                        life: 2.0, maxLife: 2.0,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        size: 5 + Math.random() * 8
+                    });
+                }
+                
+                // Двойная ударная волна
+                boundaryParticles.push({
+                    x: boss.x, y: boss.y,
+                    vx: 0, vy: 0,
+                    life: 1.2, maxLife: 1.2,
+                    color: config.glow,
+                    size: 12,
+                    isShockwave: true,
+                    radius: 30,
+                    maxRadius: 400
+                });
+                setTimeout(() => {
+                    boundaryParticles.push({
+                        x: boss.x, y: boss.y,
+                        vx: 0, vy: 0,
+                        life: 1.0, maxLife: 1.0,
+                        color: '#ffffff',
+                        size: 8,
+                        isShockwave: true,
+                        radius: 20,
+                        maxRadius: 350
+                    });
+                }, 200);
+                
+                // Вспышка на весь экран
+                redFlashEl.classList.remove('show');
+                void redFlashEl.offsetWidth;
+                redFlashEl.classList.add('show');
+                
+                // И только ПОСЛЕ всего этого — экран победы
+                setTimeout(() => {
+                    endGame('win');
+                }, 600);
+            }, 1500);
         }
 
         // ============================================================
@@ -6165,6 +6297,181 @@
                 ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
                 ctx.lineWidth = 3;
                 ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.stroke();
+                       } else if (type === 'neon_pulse') {
+                const g = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, r);
+                g.addColorStop(0, '#00ffff'); g.addColorStop(0.7, '#0088aa'); g.addColorStop(1, '#003344');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                const pulse = 1 + Math.sin(t * 6) * 0.3;
+                ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r + 5 * pulse, 0, Math.PI * 2); ctx.stroke();
+            } else if (type === 'glitch') {
+                for (let i = 0; i < 3; i++) {
+                    ctx.globalAlpha = 0.5;
+                    ctx.fillStyle = i === 0 ? '#ff00ff' : i === 1 ? '#00ffff' : '#ffff00';
+                    ctx.beginPath();
+                    ctx.arc(entity.x + (Math.random() - 0.5) * 6, entity.y + (Math.random() - 0.5) * 6, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#ff00ff';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r * 0.6, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'fire_aura') {
+                for (let i = 0; i < 6; i++) {
+                    const a = (i / 6) * Math.PI * 2 + t * 3;
+                    const dist = r + 10 + Math.sin(t * 5 + i) * 5;
+                    ctx.fillStyle = `rgba(255, ${100 + i * 20}, 0, 0.7)`;
+                    ctx.beginPath(); ctx.arc(entity.x + Math.cos(a) * dist, entity.y + Math.sin(a) * dist, 6, 0, Math.PI * 2); ctx.fill();
+                }
+                const g = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, r);
+                g.addColorStop(0, '#ffdd00'); g.addColorStop(0.6, '#ff4400'); g.addColorStop(1, '#550000');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'cosmic_skin') {
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                for (let i = 0; i < 15; i++) {
+                    const seed = i * 137;
+                    const a = (seed * 0.5 + t * 0.5) % (Math.PI * 2);
+                    const rr = (seed % 100) / 100 * r;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + Math.sin(t * 3 + i) * 0.5})`;
+                    ctx.beginPath(); ctx.arc(entity.x + Math.cos(a) * rr, entity.y + Math.sin(a) * rr, 1.5, 0, Math.PI * 2); ctx.fill();
+                }
+                const g = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, r);
+                g.addColorStop(0, 'rgba(100, 50, 200, 0.5)');
+                g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'angel') {
+                const g = ctx.createRadialGradient(entity.x - r*0.3, entity.y - r*0.3, 0, entity.x, entity.y, r);
+                g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, '#ffffcc'); g.addColorStop(1, '#ffdd88');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                const wingFlap = Math.sin(t * 4) * 5;
+                ctx.beginPath();
+                ctx.ellipse(entity.x - r - 8, entity.y + wingFlap, r * 0.6, r * 0.3, -0.3, 0, Math.PI * 2);
+                ctx.ellipse(entity.x + r + 8, entity.y + wingFlap, r * 0.6, r * 0.3, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (type === 'demon_skin') {
+                const g = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, r);
+                g.addColorStop(0, '#ff0044'); g.addColorStop(0.7, '#660000'); g.addColorStop(1, '#1a0000');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#1a0000';
+                ctx.beginPath();
+                ctx.moveTo(entity.x - r*0.5, entity.y - r*0.7);
+                ctx.lineTo(entity.x - r*0.8, entity.y - r*1.3);
+                ctx.lineTo(entity.x - r*0.3, entity.y - r*0.9);
+                ctx.closePath(); ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(entity.x + r*0.5, entity.y - r*0.7);
+                ctx.lineTo(entity.x + r*0.8, entity.y - r*1.3);
+                ctx.lineTo(entity.x + r*0.3, entity.y - r*0.9);
+                ctx.closePath(); ctx.fill();
+            } else if (type === 'cyber') {
+                ctx.fillStyle = '#0a0020';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#ff00aa';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const a = t * 2 + i * (Math.PI * 2 / 3);
+                    ctx.beginPath();
+                    ctx.arc(entity.x, entity.y, r * 0.5 + i * 3, a, a + Math.PI);
+                    ctx.stroke();
+                }
+                ctx.fillStyle = '#00ffff';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, 3, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'shadow') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = `rgba(170, 102, 255, ${0.5 + Math.sin(t * 4) * 0.3})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r + 3, 0, Math.PI * 2); ctx.stroke();
+                for (let i = 0; i < 4; i++) {
+                    const a = t + i * (Math.PI * 2 / 4);
+                    ctx.fillStyle = `rgba(170, 102, 255, 0.6)`;
+                    ctx.beginPath(); ctx.arc(entity.x + Math.cos(a) * r, entity.y + Math.sin(a) * r, 2, 0, Math.PI * 2); ctx.fill();
+                }
+            } else if (type === 'crystal_skin') {
+                const g = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, r);
+                g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, '#aaddff'); g.addColorStop(1, '#0088cc');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 6; i++) {
+                    const a = i * (Math.PI * 2 / 6) + t;
+                    ctx.beginPath();
+                    ctx.moveTo(entity.x, entity.y);
+                    ctx.lineTo(entity.x + Math.cos(a) * r * 0.9, entity.y + Math.sin(a) * r * 0.9);
+                    ctx.stroke();
+                }
+            } else if (type === 'plasma_skin') {
+                const pulse = 1 + Math.sin(t * 8) * 0.15;
+                const g = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, r * pulse);
+                g.addColorStop(0, '#ffffff'); g.addColorStop(0.3, '#ff88ff'); g.addColorStop(0.7, '#cc00ff'); g.addColorStop(1, '#440088');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r * pulse, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'infinity') {
+                const hue1 = (t * 100) % 360;
+                const hue2 = (t * 100 + 120) % 360;
+                const hue3 = (t * 100 + 240) % 360;
+                const g = ctx.createLinearGradient(entity.x - r, entity.y - r, entity.x + r, entity.y + r);
+                g.addColorStop(0, `hsl(${hue1}, 100%, 60%)`);
+                g.addColorStop(0.5, `hsl(${hue2}, 100%, 60%)`);
+                g.addColorStop(1, `hsl(${hue3}, 100%, 60%)`);
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'god') {
+                const g = ctx.createRadialGradient(entity.x, entity.y, 0, entity.x, entity.y, r);
+                g.addColorStop(0, '#ffffff'); g.addColorStop(0.4, '#ffd700'); g.addColorStop(1, '#886600');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.moveTo(entity.x - r * 0.7, entity.y - r * 0.6);
+                ctx.lineTo(entity.x - r * 0.5, entity.y - r * 1.1);
+                ctx.lineTo(entity.x - r * 0.25, entity.y - r * 0.7);
+                ctx.lineTo(entity.x, entity.y - r * 1.2);
+                ctx.lineTo(entity.x + r * 0.25, entity.y - r * 0.7);
+                ctx.lineTo(entity.x + r * 0.5, entity.y - r * 1.1);
+                ctx.lineTo(entity.x + r * 0.7, entity.y - r * 0.6);
+                ctx.closePath(); ctx.fill();
+            } else if (type === 'void_skin') {
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = `rgba(102, 68, 255, ${0.5 + Math.sin(t * 5) * 0.4})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r + 2, 0, Math.PI * 2); ctx.stroke();
+            } else if (type === 'quantum') {
+                ctx.fillStyle = '#001a1a';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.fill();
+                for (let i = 0; i < 3; i++) {
+                    const a = t * 4 + i * (Math.PI * 2 / 3);
+                    const pulse = 0.7 + Math.sin(t * 8 + i) * 0.3;
+                    ctx.strokeStyle = `rgba(0, 255, 204, ${pulse})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.ellipse(entity.x, entity.y, r * 0.9, r * 0.4, a, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.fillStyle = '#00ffcc';
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, 3, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'rainbow_ultra') {
+                const hue = (t * 200) % 360;
+                for (let i = 0; i < 6; i++) {
+                    const h = (hue + i * 60) % 360;
+                    const angle = (i / 6) * Math.PI * 2 + t * 2;
+                    ctx.fillStyle = `hsl(${h}, 100%, 55%)`;
+                    ctx.beginPath();
+                    ctx.arc(entity.x + Math.cos(angle) * r * 0.5, entity.y + Math.sin(angle) * r * 0.5, r * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.strokeStyle = `hsl(${hue}, 100%, 70%)`;
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(entity.x, entity.y, r, 0, Math.PI * 2); ctx.stroke();
             } else {
                 ctx.globalAlpha = 0.85;
                 ctx.fillStyle = color;
@@ -6406,7 +6713,7 @@
                     ctx.arc(0, 0, 22 + i * 2, (i / 6) * Math.PI * 2, ((i + 1) / 6) * Math.PI * 2);
                     ctx.stroke();
                 }
-            } else if (skin.shape === 'blackhole') {
+            } else if (skin.shape === 'blackhole')  {
                 ctx.strokeStyle = hexToRgba('#aa88ff', 0.6);
                 ctx.lineWidth = 1.5;
                 for (let i = 0; i < 3; i++) {
@@ -6428,7 +6735,234 @@
                 ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
             }
             
-            ctx.restore();
+                                   if (skin.shape === 'cyber') {
+                // Кибер-пушка: неоновые схемы
+                ctx.strokeStyle = `rgba(255, 0, 170, ${0.6 + Math.sin(t * 8) * 0.4})`;
+                ctx.lineWidth = 1.5;
+                // Схема на корпусе
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(-10 + i * 8, -10);
+                    ctx.lineTo(-10 + i * 8, 10);
+                    ctx.stroke();
+                }
+                // Пульсирующие точки
+                for (let i = 0; i < 4; i++) {
+                    const a = t * 3 + i * (Math.PI * 2 / 4);
+                    ctx.fillStyle = `rgba(0, 255, 255, ${0.5 + Math.sin(t * 6 + i) * 0.5})`;
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(a) * 15, Math.sin(a) * 15, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (skin.shape === 'sakura') {
+                // Сакура: лепестки летят вокруг
+                for (let i = 0; i < 5; i++) {
+                    const a = (i / 5) * Math.PI * 2 + t;
+                    const dist = 22 + Math.sin(t * 3 + i) * 4;
+                    ctx.fillStyle = `rgba(255, 136, 204, ${0.6 + Math.sin(t * 4 + i) * 0.3})`;
+                    ctx.save();
+                    ctx.translate(Math.cos(a) * dist, Math.sin(a) * dist);
+                    ctx.rotate(a + t * 2);
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+               }
+            } else if (skin.shape === 'shadow_cannon') {
+                // Тень: чёрный дым
+                for (let i = 0; i < 4; i++) {
+                    const a = (i / 4) * Math.PI * 2 + t * 1.5;
+                    const dist = 20 + Math.sin(t * 2 + i) * 5;
+                    const size = 6 + Math.sin(t * 3 + i) * 3;
+                    const g = ctx.createRadialGradient(Math.cos(a) * dist, Math.sin(a) * dist, 0, Math.cos(a) * dist, Math.sin(a) * dist, size);
+                    g.addColorStop(0, 'rgba(102, 0, 204, 0.6)');
+                    g.addColorStop(1, 'rgba(102, 0, 204, 0)');
+                    ctx.fillStyle = g;
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(a) * dist, Math.sin(a) * dist, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (skin.shape === 'angel_cannon') {
+                // Ангел: крылья
+                ctx.fillStyle = 'rgba(255, 255, 204, 0.7)';
+                const flap = Math.sin(t * 4) * 3;
+                ctx.beginPath();
+                ctx.ellipse(-22, flap, 10, 5, -0.4, 0, Math.PI * 2);
+                ctx.ellipse(22, flap, 10, 5, 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                // Нимб
+                ctx.strokeStyle = `rgba(255, 255, 100, ${0.7 + Math.sin(t * 3) * 0.3})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, -20, 12, 4, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (skin.shape === 'demon_cannon') {
+                // Демон: рога и красная аура
+                ctx.fillStyle = '#2a0000';
+                ctx.beginPath();
+                ctx.moveTo(-15, -12);
+                ctx.lineTo(-22, -22);
+                ctx.lineTo(-10, -15);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(15, -12);
+                ctx.lineTo(22, -22);
+                ctx.lineTo(10, -15);
+                ctx.closePath();
+                ctx.fill();
+                // Красные пульсирующие глаза
+                ctx.fillStyle = `rgba(255, 0, 68, ${0.6 + Math.sin(t * 5) * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(-8, -3, 3, 0, Math.PI * 2);
+                ctx.arc(8, -3, 3, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (skin.shape === 'matrix_cannon') {
+                // Матрица: символы падают
+                ctx.fillStyle = '#00ff44';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'center';
+                for (let i = 0; i < 3; i++) {
+                    const yy = -25 + ((t * 30 + i * 15) % 50);
+                    const alpha = 1 - Math.abs(yy) / 30;
+                    ctx.fillStyle = `rgba(0, 255, 68, ${Math.max(0, alpha)})`;
+                    ctx.fillText(['0', '1', '{', '}'][i % 4], -10 + i * 10, yy);
+                }
+            } else if (skin.shape === 'crystal_ultra') {
+                // Супер-кристалл: лучи света
+                for (let i = 0; i < 8; i++) {
+                    const a = (i / 8) * Math.PI * 2 + t * 0.5;
+                    const len = 25 + Math.sin(t * 3 + i) * 5;
+                    ctx.strokeStyle = `rgba(0, 221, 255, ${0.5 + Math.sin(t * 4 + i) * 0.3})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(a) * 15, Math.sin(a) * 15);
+                    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+                    ctx.stroke();
+                }
+                // Центральный кристалл
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.beginPath();
+                ctx.moveTo(0, -12);
+                ctx.lineTo(8, 0);
+                ctx.lineTo(0, 12);
+                ctx.lineTo(-8, 0);
+                ctx.closePath();
+                ctx.fill();
+            } else if (skin.shape === 'plasma_cannon') {
+                // Плазма: пульсирующие шары
+                for (let i = 0; i < 4; i++) {
+                    const a = (i / 4) * Math.PI * 2 + t * 2;
+                    const dist = 20 + Math.sin(t * 4 + i) * 5;
+                    const size = 5 + Math.sin(t * 6 + i) * 2;
+                    const g = ctx.createRadialGradient(Math.cos(a) * dist, Math.sin(a) * dist, 0, Math.cos(a) * dist, Math.sin(a) * dist, size);
+                    g.addColorStop(0, 'rgba(255, 136, 255, 0.9)');
+                    g.addColorStop(0.5, 'rgba(204, 0, 255, 0.6)');
+                    g.addColorStop(1, 'rgba(204, 0, 255, 0)');
+                    ctx.fillStyle = g;
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(a) * dist, Math.sin(a) * dist, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (skin.shape === 'phoenix') {
+                // Феникс: огненные перья
+                for (let i = 0; i < 5; i++) {
+                    const a = -0.5 + (i / 4) * 1.0 + Math.sin(t * 3 + i) * 0.2;
+                    const len = 15 + Math.sin(t * 6 + i) * 5;
+                    ctx.fillStyle = `rgba(255, ${100 + i * 30}, 0, ${0.6 + Math.sin(t * 5 + i) * 0.3})`;
+                    ctx.save();
+                    ctx.rotate(a);
+                    ctx.beginPath();
+                    ctx.ellipse(30, 0, len, 3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Огненная аура вокруг
+                const auraGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+                auraGrad.addColorStop(0, 'rgba(255, 200, 0, 0.3)');
+                auraGrad.addColorStop(1, 'rgba(255, 100, 0, 0)');
+                ctx.fillStyle = auraGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, 30, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (skin.shape === 'titan') {
+                // Титан: бронированные пластины и пульсация
+                ctx.strokeStyle = `rgba(136, 170, 255, ${0.6 + Math.sin(t * 3) * 0.4})`;
+                ctx.lineWidth = 2;
+                // Кольца брони
+                for (let i = 1; i <= 2; i++) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 15 + i * 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                // Болты
+                for (let i = 0; i < 6; i++) {
+                    const a = (i / 6) * Math.PI * 2;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(a) * 22, Math.sin(a) * 22, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (skin.shape === 'god_cannon') {
+                // БОГ-пушка: нимб, лучи, корона
+                // Нимб
+                ctx.strokeStyle = `rgba(255, 215, 0, ${0.7 + Math.sin(t * 3) * 0.3})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.ellipse(0, -25, 15, 5, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                // Лучи из центра
+                for (let i = 0; i < 12; i++) {
+                    const a = (i / 12) * Math.PI * 2 + t * 0.5;
+                    const len = 28 + Math.sin(t * 4 + i) * 4;
+                    ctx.strokeStyle = `rgba(255, 215, 0, ${0.4 + Math.sin(t * 5 + i) * 0.3})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(a) * 15, Math.sin(a) * 15);
+                    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+                    ctx.stroke();
+                }
+                // Мини-корона
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.moveTo(-10, -15);
+                ctx.lineTo(-8, -22);
+                ctx.lineTo(-4, -17);
+                ctx.lineTo(0, -24);
+                ctx.lineTo(4, -17);
+                ctx.lineTo(8, -22);
+                ctx.lineTo(10, -15);
+                ctx.closePath();
+                ctx.fill();
+            } else if (skin.shape === 'void_ultra') {
+                // Пустота-Х: искривление пространства
+                const pulse = 0.7 + Math.sin(t * 4) * 0.3;
+                // Вращающиеся спирали
+                for (let arm = 0; arm < 3; arm++) {
+                    ctx.beginPath();
+                    for (let i = 0; i <= 20; i++) {
+                        const p = i / 20;
+                        const a = arm * (Math.PI * 2 / 3) + p * Math.PI * 4 + t * 2;
+                        const r = p * 30;
+                        if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+                        else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+                    }
+                    ctx.strokeStyle = `rgba(68, 0, 255, ${pulse * 0.6})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                // Чёрная дыра в центре
+                const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
+                g.addColorStop(0, '#000000');
+                g.addColorStop(0.6, '#000000');
+                g.addColorStop(0.8, `rgba(68, 0, 255, ${pulse})`);
+                g.addColorStop(1, 'rgba(68, 0, 255, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                ctx.fill();
+            }
+                ctx.restore();
         }
 
         function drawBullet(b, bulletSkin) {
@@ -6540,6 +7074,237 @@
                 g.addColorStop(0, '#ffffff'); g.addColorStop(0.4, '#ffd700'); g.addColorStop(1, '#886600');
                 ctx.fillStyle = g;
                 ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
+                        } else if (type === 'rainbow_ultra') {
+                const hue = (t * 400) % 360;
+                // Двойное свечение
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * 5);
+                g.addColorStop(0, '#ffffff');
+                g.addColorStop(0.3, `hsl(${hue}, 100%, 60%)`);
+                g.addColorStop(0.6, `hsl(${(hue + 120) % 360}, 100%, 55%)`);
+                g.addColorStop(1, `hsla(${(hue + 240) % 360}, 100%, 50%, 0)`);
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 5, 0, Math.PI * 2); ctx.fill();
+                // Ядро
+                ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
+                // Вращающиеся точки
+                for (let i = 0; i < 3; i++) {
+                    const a = t * 5 + i * (Math.PI * 2 / 3);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(b.x + Math.cos(a) * b.radius * 1.8, b.y + Math.sin(a) * b.radius * 1.8, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (type === 'lightning_bullet') {
+                // Грозовая пуля — электрические разряды
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.9, 0, Math.PI * 2); ctx.fill();
+                // Молнии
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + Math.random() * 0.4})`;
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 4; i++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const len = b.radius * 2 + Math.random() * b.radius;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x, b.y);
+                    ctx.lineTo(b.x + Math.cos(a) * len * 0.5, b.y + Math.sin(a) * len * 0.5);
+                    ctx.lineTo(b.x + Math.cos(a + 0.3) * len, b.y + Math.sin(a + 0.3) * len);
+                    ctx.stroke();
+                }
+                // Синее свечение
+                ctx.shadowColor = '#00ddff';
+                ctx.shadowBlur = 15;
+                ctx.strokeStyle = '#00ddff';
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 1.5, 0, Math.PI * 2); ctx.stroke();
+                ctx.shadowBlur = 0;
+            } else if (type === 'shadow_bullet') {
+                // Теневая пуля — тёмная с фиолетовой аурой
+                const pulse = 0.5 + Math.sin(t * 8 + b.x) * 0.5;
+                // Аура
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * 3);
+                g.addColorStop(0, `rgba(170, 102, 255, ${pulse})`);
+                g.addColorStop(0.5, `rgba(80, 0, 150, ${pulse * 0.5})`);
+                g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 3, 0, Math.PI * 2); ctx.fill();
+                // Чёрное ядро
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
+                // Фиолетовая обводка
+                ctx.strokeStyle = `rgba(170, 102, 255, ${pulse})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius + 2, 0, Math.PI * 2); ctx.stroke();
+            } else if (type === 'angel_bullet') {
+                // Ангельская пуля — светлая с крыльями
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * 4);
+                g.addColorStop(0, '#ffffff');
+                g.addColorStop(0.4, '#ffffcc');
+                g.addColorStop(1, 'rgba(255, 255, 204, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 4, 0, Math.PI * 2); ctx.fill();
+                // Ядро
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
+                // Крылышки
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                const flap = Math.sin(t * 10 + b.x) * 2;
+                ctx.beginPath();
+                ctx.ellipse(b.x - b.radius * 1.5, b.y + flap, b.radius * 0.8, b.radius * 0.4, -0.3, 0, Math.PI * 2);
+                ctx.ellipse(b.x + b.radius * 1.5, b.y + flap, b.radius * 0.8, b.radius * 0.4, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (type === 'demon_bullet') {
+                // Демоническая пуля — огненная с красной аурой
+                const pulse = 1 + Math.sin(t * 15 + b.x) * 0.2;
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * pulse * 2.5);
+                g.addColorStop(0, '#ff2222');
+                g.addColorStop(0.4, '#660000');
+                g.addColorStop(0.8, '#1a0000');
+                g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * pulse * 2.5, 0, Math.PI * 2); ctx.fill();
+                // Ядро (демонический глаз)
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+                // Зрачок
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.3, 0, Math.PI * 2); ctx.fill();
+                // Рожки
+                ctx.strokeStyle = '#660000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(b.x - b.radius * 0.6, b.y - b.radius * 0.6);
+                ctx.lineTo(b.x - b.radius * 1.2, b.y - b.radius * 1.2);
+                ctx.moveTo(b.x + b.radius * 0.6, b.y - b.radius * 0.6);
+                ctx.lineTo(b.x + b.radius * 1.2, b.y - b.radius * 1.2);
+                ctx.stroke();
+            } else if (type === 'quantum_bullet') {
+                // Квантовая пуля — пульсирующая с орбитами
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * 3);
+                g.addColorStop(0, '#ffffff');
+                g.addColorStop(0.3, '#00ffcc');
+                g.addColorStop(0.7, '#008866');
+                g.addColorStop(1, 'rgba(0, 26, 26, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 3, 0, Math.PI * 2); ctx.fill();
+                // Ядро
+                ctx.fillStyle = '#00ffcc';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+                // Орбиты электронов (3)
+                for (let i = 0; i < 3; i++) {
+                    const a = t * 4 + i * (Math.PI * 2 / 3);
+                    const rx = Math.cos(a) * b.radius * 1.8;
+                    const ry = Math.sin(a) * b.radius * 1.8 * 0.5;
+                    ctx.strokeStyle = `rgba(0, 255, 204, ${0.5 + Math.sin(t * 5 + i) * 0.3})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.ellipse(b.x, b.y, b.radius * 1.8, b.radius * 0.8, a, 0, Math.PI * 2);
+                    ctx.stroke();
+                    // Электрон
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(b.x + rx, b.y + ry, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (type === 'phoenix_bullet') {
+                // Феникс — огненная с крыльями
+                const size = b.radius * (1 + Math.sin(t * 12 + b.x) * 0.15);
+                // Пламя
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, size * 2.5);
+                g.addColorStop(0, '#ffffff');
+                g.addColorStop(0.3, '#ffcc00');
+                g.addColorStop(0.7, '#ff4400');
+                g.addColorStop(1, 'rgba(255, 68, 0, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, size * 2.5, 0, Math.PI * 2); ctx.fill();
+                // Ядро
+                ctx.fillStyle = '#ffdd00';
+                ctx.beginPath(); ctx.arc(b.x, b.y, size * 0.8, 0, Math.PI * 2); ctx.fill();
+                // Огненные крылья (след)
+                ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, 0.6)`;
+                ctx.beginPath();
+                ctx.ellipse(b.x - size * 1.5, b.y, size * 0.6, size * 0.3, 0, 0, Math.PI * 2);
+                ctx.ellipse(b.x + size * 1.5, b.y, size * 0.6, size * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (type === 'titan_bullet') {
+                // Титановая — с бронированным корпусом
+                const g = ctx.createRadialGradient(b.x - 2, b.y - 2, 0, b.x, b.y, b.radius);
+                g.addColorStop(0, '#ffffff');
+                g.addColorStop(0.5, '#88aaff');
+                g.addColorStop(1, '#334466');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
+                // Металлические полосы
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.7, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.4, 0, Math.PI * 2); ctx.stroke();
+                // Пульсирующий центр
+                const p = 0.5 + Math.sin(t * 6 + b.x) * 0.5;
+                ctx.fillStyle = `rgba(255, 255, 255, ${p})`;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.2, 0, Math.PI * 2); ctx.fill();
+            } else if (type === 'god_bullet') {
+                // Божественная — золотая с короной
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * 4);
+                g.addColorStop(0, '#ffffff');
+                g.addColorStop(0.3, '#ffd700');
+                g.addColorStop(0.7, '#ffaa00');
+                g.addColorStop(1, 'rgba(136, 102, 0, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 4, 0, Math.PI * 2); ctx.fill();
+                // Ядро
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+                // Мини-корона над пулей
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.moveTo(b.x - b.radius * 0.8, b.y - b.radius * 1.2);
+                ctx.lineTo(b.x - b.radius * 0.6, b.y - b.radius * 1.8);
+                ctx.lineTo(b.x - b.radius * 0.3, b.y - b.radius * 1.3);
+                ctx.lineTo(b.x, b.y - b.radius * 1.9);
+                ctx.lineTo(b.x + b.radius * 0.3, b.y - b.radius * 1.3);
+                ctx.lineTo(b.x + b.radius * 0.6, b.y - b.radius * 1.8);
+                ctx.lineTo(b.x + b.radius * 0.8, b.y - b.radius * 1.2);
+                ctx.closePath();
+                ctx.fill();
+                // Лучи
+                for (let i = 0; i < 8; i++) {
+                    const a = t * 2 + i * (Math.PI * 2 / 8);
+                    const len = b.radius * 2 + Math.sin(t * 5 + i) * 3;
+                    ctx.strokeStyle = `rgba(255, 215, 0, ${0.5 + Math.sin(t * 4 + i) * 0.3})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x + Math.cos(a) * b.radius, b.y + Math.sin(a) * b.radius);
+                    ctx.lineTo(b.x + Math.cos(a) * len, b.y + Math.sin(a) * len);
+                    ctx.stroke();
+                }
+            } else if (type === 'void_ultra_bullet') {
+                // Пустота-Х — абсолютная тьма с гравитацией
+                const pulse = 0.7 + Math.sin(t * 5 + b.x) * 0.3;
+                // Поглощение света
+                const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius * 4);
+                g.addColorStop(0, '#000000');
+                g.addColorStop(0.5, '#1a0a2a');
+                g.addColorStop(0.8, `rgba(68, 0, 255, ${pulse * 0.5})`);
+                g.addColorStop(1, 'rgba(68, 0, 255, 0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 4, 0, Math.PI * 2); ctx.fill();
+                // Вращающиеся тёмные частицы
+                for (let i = 0; i < 4; i++) {
+                    const a = t * 6 + i * (Math.PI * 2 / 4);
+                    const dist = b.radius * 2 + Math.sin(t * 3 + i) * 5;
+                    ctx.fillStyle = `rgba(68, 0, 255, ${0.8})`;
+                    ctx.beginPath();
+                    ctx.arc(b.x + Math.cos(a) * dist, b.y + Math.sin(a) * dist, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Ядро — чистая тьма
+                ctx.fillStyle = '#000000';
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
+                // Тонкая обводка фиолетовая
+                ctx.strokeStyle = `rgba(102, 68, 255, ${pulse})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius + 1, 0, Math.PI * 2); ctx.stroke();
             } else {
                 ctx.fillStyle = baseColor;
                 ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill();
@@ -6639,9 +7404,22 @@
             });
             
             particles.forEach(p => { const alpha = p.life / p.maxLife; ctx.globalAlpha = alpha; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2); ctx.fill(); });
-            boundaryParticles.forEach(p => {
+                        boundaryParticles.forEach(p => {
                 const alpha = p.life / p.maxLife;
                 ctx.globalAlpha = alpha;
+                
+                // ✅ Ударная волна (расширяющееся кольцо)
+                if (p.isShockwave) {
+                    const progress = 1 - p.life / p.maxLife;
+                    const currentRadius = 20 + (p.maxRadius - 20) * progress;
+                    ctx.strokeStyle = hexToRgba(p.color, alpha * 0.8);
+                    ctx.lineWidth = 4 * (1 - progress);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, currentRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    return;
+                }
+                
                 const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 4);
                 grad.addColorStop(0, p.color); grad.addColorStop(1, 'rgba(0, 200, 255, 0)');
                 ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 4, 0, Math.PI * 2); ctx.fill();
@@ -7217,8 +7995,13 @@
             player.vx = 0; player.vy = 0;
             bullets = []; playerBullets = []; particles = []; boundaryParticles = []; heartParticles = []; coinParticles = [];
             heartItems = [];
-            heartSpawnTimer = HEART_SPAWN_INTERVAL;
-            heartTimerEl.style.display = (gameMode === 'boss') ? 'none' : 'block';
+                        heartSpawnTimer = HEART_SPAWN_INTERVAL;
+            // ✅ Показываем таймер сердечка ТОЛЬКО в классике, ботах, лабиринте
+            if (gameMode === 'classic' || gameMode === 'bots' || gameMode === 'maze') {
+                heartTimerEl.style.display = 'block';
+            } else {
+                heartTimerEl.style.display = 'none';
+            }
             heartTimerValEl.textContent = HEART_SPAWN_INTERVAL;
             activeEmotes.clear();
             gameTime = 0;
@@ -7295,17 +8078,40 @@
             rebuildEmoteMenu();
             rebuildEmoteHint();
             
-            // ✅ В режиме босса — только жизни, остальной UI скрыт
+                      // ✅ Скрываем UI в зависимости от режима
             const uiToHide = ['coinInfo', 'timeLine', 'bestLine', 'levelLine', 'heartTimerLine', 'waveLine'];
+            
             if (gameMode === 'boss') {
+                // В режиме босса — скрыть ВСЁ кроме жизней
                 uiToHide.forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
-            } else {
+            } else if (gameMode === 'waves') {
+                // В волнах — скрыть время и таймер сердечка (рекорды по волнам)
                 uiToHide.forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) el.style.display = (id === 'heartTimerLine' || id === 'waveLine') ? 'none' : 'block';
+                    if (!el) return;
+                    if (id === 'timeLine' || id === 'heartTimerLine') {
+                        el.style.display = 'none';
+                    } else if (id === 'waveLine') {
+                        el.style.display = 'block';  // волна показывается
+                    } else {
+                        el.style.display = 'block';  // остальное показывается
+                    }
+                });
+            } else {
+                // Классика / Боты / Лабиринт
+                uiToHide.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (id === 'heartTimerLine') {
+                        el.style.display = 'block';  // ✅ показываем таймер сердечка
+                    } else if (id === 'waveLine') {
+                        el.style.display = 'none';   // волна не нужна
+                    } else {
+                        el.style.display = 'block';  // остальное показывается
+                    }
                 });
             }
             
@@ -7543,7 +8349,7 @@
                 });
             }
             
-            if (frame.player && isFinite(frame.player.x) && isFinite(frame.player.y)) {
+                        if (frame.player && frame.player.alive && isFinite(frame.player.x) && isFinite(frame.player.y)) {
                 const p = frame.player;
                 const savedX = player.x, savedY = player.y;
                 player.x = p.x; player.y = p.y;
