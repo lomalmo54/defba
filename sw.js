@@ -1,4 +1,4 @@
-const CACHE_NAME = 'defba-cache-v31';
+const CACHE_NAME = 'defba-cache-v32';
 // Список файлов для кэширования (все, что нужно для работы игры)
 const ASSETS_TO_CACHE = [
   './',
